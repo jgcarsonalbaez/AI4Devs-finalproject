@@ -54,7 +54,7 @@ def huella(texto):
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:12]
 
 
-REGISTRO = "registro derivado"
+REGISTRO = "registro derivado\n| **D-1** | primera decisión |\n| **D-2** | segunda decisión |\n"
 
 
 def montar(dir_, doc=DOC_SANO, previstas="", indice_extra="", huella_mala=False, sin_config=False,
@@ -130,11 +130,29 @@ def con_git(dir_, cambio):
         copia.symlink_to("../../../sub/unico.txt")
         indice.write_text(indice.read_text(encoding="utf-8").replace(huella("copia fechada"), huella("x")),
                           encoding="utf-8")
-    elif cambio == "derivada":   # el registro derivado se pone al día: es lo esperado
+    elif cambio in ("derivada", "derivada-reescrita", "derivada-sin-decision"):
         registro = copia.parent / "registro.md"
-        registro.write_text(REGISTRO + " con una decisión más", encoding="utf-8")
-        indice.write_text(indice.read_text(encoding="utf-8").replace(
-            huella(REGISTRO), huella(REGISTRO + " con una decisión más")), encoding="utf-8")
+        nuevo = {
+            # crece y marca: una decisión nueva, la 1 tachada y la 2 con una nota al final
+            "derivada": REGISTRO.replace("| **D-1** | primera decisión |", "| ~~**D-1**~~ | ~~primera decisión~~ |")
+                                .replace("segunda decisión |", "segunda decisión. *Precisada por D-3* |")
+                        + "| **D-3** | tercera decisión |\n",
+            "derivada-reescrita": REGISTRO.replace("primera decisión", "otra cosa"),
+            "derivada-sin-decision": REGISTRO.replace("| **D-2** | segunda decisión |\n", ""),
+        }[cambio]
+        registro.write_text(nuevo, encoding="utf-8")
+        indice.write_text(indice.read_text(encoding="utf-8").replace(huella(REGISTRO), huella(nuevo)),
+                          encoding="utf-8")
+    elif cambio in ("derivada-borrada", "derivada-tipo"):
+        registro = copia.parent / "registro.md"
+        registro.unlink()
+        if cambio == "derivada-tipo":
+            registro.symlink_to("a.md")
+            indice.write_text(indice.read_text(encoding="utf-8").replace(huella(REGISTRO), huella("copia fechada")),
+                              encoding="utf-8")
+        else:
+            indice.write_text("\n".join(l for l in indice.read_text(encoding="utf-8").splitlines()
+                                        if "`01-Paso/registro.md`" not in l) + "\n", encoding="utf-8")
     elif cambio == "reetiquetar":   # reescribe la copia y la declara «derivada» para librarse
         copia.write_text("copia alterada", encoding="utf-8")
         texto = indice.read_text(encoding="utf-8").replace(huella("copia fechada"), huella("copia alterada"))
@@ -177,6 +195,21 @@ CASOS = [
      lambda d: correr(montar(d, doc=DOC_SANO + "\nDe RF-1 a RF-3.")), 1, "RF-2 (dentro"),
     ("negativo: rango al revés", lambda d: correr(montar(d, doc=DOC_SANO + "\nDe D-3 a D-1.")), 1,
      "no es un intervalo válido"),
+    ("negativo: rango de 201 elementos", lambda d: correr(montar(d, doc=DOC_SANO + "\nDe D-1 a D-201.")), 1,
+     "el rango «D-1 a D-201» no es un intervalo válido"),
+    ("negativo: rango de criterios de 201 elementos",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nSegún HU-01.CA-1 a CA-201.")), 1, "no es un intervalo válido"),
+    ("negativo: ruta que sale del repositorio aunque exista en la máquina",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n[x](" + "../" * 30 + "etc/hosts)")), 1, "etc/hosts` no existe"),
+    ("positivo: enlace por referencia usado y definido",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nVer [el archivo][uno].\n\n[uno]: sub/unico.txt")), 0,
+     "toda referencia resuelve"),
+    ("negativo: enlace por referencia usado sin definición",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nVer [el archivo][no-definido].")), 1,
+     "el enlace por referencia [no-definido] no tiene definición"),
+    ("positivo: en un bloque de código nada es enlace",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n```python\nx = a[0][1]\ny(z)[w](no/existe)\n```")), 0,
+     "toda referencia resuelve"),
     ("negativo: numeración retirada sin aviso", lambda d: correr(montar(d, doc=DOC_SANO + "\nVer T-07.")), 1,
      "numeración retirada T-07"),
     ("positivo: ruta prevista con ticket válido",
@@ -199,6 +232,11 @@ CASOS = [
     ("positivo: copia neutralizada con su origen", lambda d: correr(montar(d, estado="**neutralizada**")), 0,
      "toda referencia resuelve"),
     ("negativo: estado que no existe", lambda d: correr(montar(d, estado="revisada")), 1, "tiene el estado «revisada»"),
+    ("negativo: estado válido con texto de más", lambda d: correr(montar(d, estado="idéntica alterada")), 1,
+     "tiene el estado «idéntica alterada»"),
+    ("negativo: fila del índice con huella mal formada que repite un archivo",
+     lambda d: correr(montar(d, indice_extra="| `01-Paso/a.md` | `01-Paso/a.md` | `ABCDEF123456` | revisada |\n")), 1,
+     "fila del índice mal formada"),
     ("negativo: derivada de otro paso",
      lambda d: correr(montar(d, origen_derivada="02-Otro/registro-privado.md (fuente privada)")), 1,
      "dice derivar de `02-Otro/registro-privado.md (fuente privada)`, de otro paso"),
@@ -223,6 +261,15 @@ CASOS = [
      lambda d: correr(con_git(d, "tipo"), "--base", "HEAD"), 1, "`docs/trazabilidad/01-Paso/a.md` cambió de tipo"),
     ("positivo: con --base, la derivada se pone al día", lambda d: correr(con_git(d, "derivada"), "--base", "HEAD"), 0,
      "toda referencia resuelve"),
+    ("negativo: con --base, la derivada reescribe una decisión",
+     lambda d: correr(con_git(d, "derivada-reescrita"), "--base", "HEAD"), 1, "la decisión D-1 se reescribió"),
+    ("negativo: con --base, a la derivada le falta una decisión",
+     lambda d: correr(con_git(d, "derivada-sin-decision"), "--base", "HEAD"), 1, "la decisión D-2 desapareció"),
+    ("negativo: con --base, la derivada desaparece", lambda d: correr(con_git(d, "derivada-borrada"), "--base", "HEAD"),
+     1, "`docs/trazabilidad/01-Paso/registro.md` desapareció desde HEAD"),
+    ("negativo: con --base, la derivada cambiada por un enlace simbólico",
+     lambda d: correr(con_git(d, "derivada-tipo"), "--base", "HEAD"), 1,
+     "`docs/trazabilidad/01-Paso/registro.md` cambió de tipo"),
     ("negativo: con --base, reetiquetar una copia como derivada no la libra",
      lambda d: correr(con_git(d, "reetiquetar"), "--base", "HEAD"), 1, "`docs/trazabilidad/01-Paso/a.md` cambió desde HEAD"),
 ] + [

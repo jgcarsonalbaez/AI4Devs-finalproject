@@ -13,7 +13,9 @@ Qué revisa, con la configuración de `scripts/referencias.txt`:
      forma de ruta debe existir: junto al documento, desde la raíz o dentro de
      `docs/trazabilidad/`. El destino de cada enlace Markdown que no sea web
      también, en sus tres formas: en línea `[t](destino "título")`, entre
-     ángulos `[t](<destino con espacios>)` y por referencia `[id]: destino`;
+     ángulos `[t](<destino con espacios>)` y por referencia `[id]: destino`,
+     y cada uso `[t][id]` necesita su definición en el mismo documento;
+     dentro del código (en línea o en bloque) nada es enlace;
      un destino que empieza por `/` se busca desde la raíz y `%20` se lee como
      espacio. Lo que aún no existe porque lo crea un ticket futuro va en
      [previstas], con ese ticket; si ya existe, sobra ahí.
@@ -25,18 +27,25 @@ Qué revisa, con la configuración de `scripts/referencias.txt`:
   3. Numeración retirada. Los tickets T-nn de la entrega 1 se sustituyeron por
      HU-xx.y y H-n; solo se admiten en una línea que diga «numeración anterior».
   4. Índice de la cadena. Cada archivo de `docs/trazabilidad/` está en la tabla
-     de `docs/trazabilidad/README.md` una sola vez y al revés; ninguno es un
+     de `docs/trazabilidad/README.md` una sola vez y al revés; ninguna fila que
+     empiece por un archivo queda sin leer por mal formada; ninguno es un
      enlace simbólico; la huella (12 primeros caracteres de su SHA-256)
-     coincide; el estado es uno de `idéntica`, `neutralizada` o `derivada`; y
+     coincide; el estado es exactamente `idéntica`, `neutralizada` o `derivada
+     sin nombres` (la negrita no cuenta); y
      el origen es coherente: una copia idéntica o neutralizada viene del mismo
      paso y con el mismo nombre, y una derivada, del mismo paso.
   5. Inmutabilidad (solo con --base REF). Una copia de `docs/trazabilidad/` que
      ya existía en REF no puede haber cambiado, cambiado de tipo ni
      desaparecido: las versiones nuevas se agregan, no se reescriben. Sin esto,
      cambiar a la vez un archivo y su huella en el índice pasaría en verde. La
-     excepción son los archivos que el índice de REF declara `derivada`: se
-     mantienen al día por diseño (el registro de decisiones). Se lee el índice
-     de REF, no el actual, para que una copia no se libre cambiando su estado.
+     excepción son los archivos que el índice de REF declara `derivada sin
+     nombres`: se mantienen al día por diseño (el registro de decisiones). Aun
+     así, cada decisión que estaba en REF tiene que seguir igual, o igual con
+     una nota al final o tachada: las decisiones crecen y se marcan, no se
+     reescriben. Se lee el índice de REF, no el actual, para que una copia no
+     se libre cambiando su estado.
+  6. Rutas dentro del repositorio. Una cita que sale de él («../../etc/x»)
+     no resuelve aunque el archivo exista en la máquina.
 
 Lo que NO revisa, a propósito:
   - Si lo citado dice lo que el documento afirma que dice. Eso lo revisa una
@@ -45,9 +54,12 @@ Lo que NO revisa, a propósito:
     faltan.
   - Las pruebas de `tests/`: sus datos de juguete citan a propósito cosas que
     no existen, para probar que se detectan.
-  - Las corridas del revisor (`docs/revisiones/*-corrida*.md`): son la opinión
-    de un modelo y pueden citar mal; justo eso es lo que se responde. Las
-    respuestas sí son documentos vivos.
+  - Los informes del revisor (`docs/revisiones/<rama>-ronda<N>.md` y sus
+    `-corrida<M>.md`): no los redactamos, son la opinión de un modelo y pueden
+    citar mal; justo eso es lo que se responde. Las respuestas sí son
+    documentos vivos.
+  - Fuera de las decisiones (`| **D-n** |`), el registro derivado puede
+    cambiar: su cabecera y los puntos abiertos no se comparan.
   - El origen fuera del repositorio: el espacio de trabajo es privado.
   - Los commits intermedios: la inmutabilidad compara REF con el estado final.
     Un archivo agregado y reescrito dentro de la misma rama sin unir no se ve;
@@ -77,11 +89,15 @@ ENLACE_MD = re.compile(r"\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))
 ENLACE_REF = re.compile(r"^\s{0,3}\[[^\]\n]+\]:\s*(<[^>\n]*>|\S+)")
 INDICE = "docs/trazabilidad/README.md"
 FILA_INDICE = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*`([0-9a-f]{12})`\s*\|\s*([^|]+)\|")
-ESTADOS = ("idéntica", "neutralizada", "derivada")
+ESTADOS = ("idéntica", "neutralizada", "derivada sin nombres")   # exactos, sin la negrita
+# Uso de un enlace por referencia: «[texto][id]» o «[id][]».
+USO_REF = re.compile(r"\[([^\]\n]+)\]\[([^\]\n]*)\]")
+# Fila de una decisión en el registro derivado: «| **D-5** |» o «| ~~**D-5**~~ |».
+FILA_DECISION = re.compile(r"^\|\s*(?:~~)?\*\*(D-\d+)\*\*")
 # Abreviaturas de criterios tras uno completo: «HU-03.CA-1, CA-2 y CA-5», «HU-03.CA-1 a CA-3».
 CA_LISTA = re.compile(r"\b(HU-\d{2})\.CA-(\d+)((?:\s*(?:,\s*(?:y\s+)?|y\s+|a\s+)CA-\d+)+)")
 CA_SIGUIENTE = re.compile(r"(,\s*(?:y\s+)?|y\s+|a\s+)CA-(\d+)")
-RANGO_MAX = 200   # un rango más largo se toma por error de escritura y se marca
+RANGO_MAX = 200   # un rango de más elementos se toma por error de escritura y se marca
 IGNORADOS = {".git", "node_modules", ".next"}
 COMANDOS = {"python3", "python", "bash", "sh", "node", "pnpm"}
 
@@ -130,7 +146,7 @@ def interiores(linea):
         familia = familia_de(f"{prefijo}{a}")
         if familia is None:
             continue
-        if b <= a or b - a > RANGO_MAX:
+        if b <= a or b - a + 1 > RANGO_MAX:
             errores.append(f"el rango «{m.group(0)}» no es un intervalo válido")
             continue
         citados += [(familia, f"{prefijo}{k}") for k in range(a + 1, b)]
@@ -139,7 +155,7 @@ def interiores(linea):
         for s in CA_SIGUIENTE.finditer(m.group(3)):
             n = int(s.group(2))
             if s.group(1).strip() == "a":
-                if n <= previo or n - previo > RANGO_MAX:
+                if n <= previo or n - previo + 1 > RANGO_MAX:
                     errores.append(f"el rango «{hu}.CA-{previo} a CA-{n}» no es un intervalo válido")
                 else:
                     citados += [("CA", f"{hu}.CA-{k}") for k in range(previo + 1, n + 1)]
@@ -189,12 +205,20 @@ def parece_ruta(texto, no_son_rutas):
     return texto.endswith(EXTENSIONES) or ("/" in texto and not texto.endswith(":"))
 
 
+def dentro(ruta, raiz):
+    """Existe y queda dentro del repositorio: «../../etc/passwd» no vale aunque exista."""
+    try:
+        return ruta.exists() and ruta.resolve().is_relative_to(raiz)
+    except (OSError, ValueError):
+        return False
+
+
 def resuelve(texto, doc, raiz):
     rel = texto.rstrip("/")
     if rel.startswith("/"):   # enlace absoluto dentro del repositorio: desde la raíz
-        return (raiz / rel.lstrip("/")).exists()
+        return dentro(raiz / rel.lstrip("/"), raiz)
     for base in (doc.parent, raiz, raiz / "docs" / "trazabilidad"):
-        if (base / rel).exists():
+        if dentro(base / rel, raiz):
             return True
     if "/" not in rel:   # nombre suelto: vale si hay exactamente un archivo con ese nombre
         hallados = [p for p in raiz.rglob(rel) if not IGNORADOS & set(p.relative_to(raiz).parts)]
@@ -257,7 +281,22 @@ def main():
 
     for doc in vivos:
         rel_doc = doc.relative_to(raiz)
-        for n, linea in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+        lineas = doc.read_text(encoding="utf-8").splitlines()
+        # En Markdown, lo que va en un bloque de código (```) no es enlace.
+        en_bloque, fuera_de_bloque = False, []
+        for linea in lineas:
+            if linea.lstrip().startswith("```"):
+                en_bloque = not en_bloque
+                fuera_de_bloque.append(False)
+            else:
+                fuera_de_bloque.append(not en_bloque)
+        definiciones = set()
+        if doc.suffix == ".md":
+            for linea, fuera in zip(lineas, fuera_de_bloque):
+                m = ENLACE_REF.match(CANDIDATO_RUTA.sub("``", linea)) if fuera else None
+                if m:
+                    definiciones.add(re.match(r"\s*\[([^\]]+)\]", linea).group(1).strip().lower())
+        for n, linea in enumerate(lineas, 1):
             candidatos = []
             for m in CANDIDATO_RUTA.finditer(linea):
                 partes = m.group(1).strip().split()
@@ -274,10 +313,16 @@ def main():
             # Solo en Markdown: en el código, «x[i](y)» no es un enlace.
             # Y fuera del código en línea: «`x[i](y)`» tampoco es un enlace.
             enlaces = []
-            if doc.suffix == ".md":
+            if doc.suffix == ".md" and fuera_de_bloque[n - 1]:
                 sin_codigo = CANDIDATO_RUTA.sub("``", linea)
                 enlaces = [m.group(1) for m in ENLACE_MD.finditer(sin_codigo)]
                 enlaces += [m.group(1) for m in ENLACE_REF.finditer(sin_codigo)]
+                # Un uso «[texto][id]» necesita su definición «[id]: destino» en el mismo documento.
+                for m in USO_REF.finditer(sin_codigo):
+                    revisadas += 1
+                    ident = (m.group(2) or m.group(1)).strip().lower()
+                    if ident not in definiciones:
+                        rotas.append(f"{rel_doc}:{n}: el enlace por referencia [{ident}] no tiene definición")
             for crudo in enlaces:
                 destino = destino_enlace(crudo)
                 if destino is None:
@@ -320,6 +365,11 @@ def main():
     for n, linea in enumerate(indice.read_text(encoding="utf-8").splitlines(), 1):
         m = FILA_INDICE.match(linea)
         if not m:
+            # Una fila que empieza por un archivo y no tiene la forma esperada no se salta en silencio.
+            if linea.startswith("| `"):
+                revisadas += 1
+                rotas.append(f"{INDICE}:{n}: fila del índice mal formada; se espera "
+                             f"| `archivo` | `origen` | `huella de 12 hexadecimales` | estado |")
             continue
         archivo, origen, h, estado = m.group(1), m.group(2), m.group(3), m.group(4).strip()
         revisadas += 1
@@ -327,11 +377,11 @@ def main():
             rotas.append(f"{INDICE}:{n}: `{archivo}` aparece dos veces en el índice (la otra en la línea {en_indice[archivo][1]})")
             continue
         en_indice[archivo] = (h, n)
-        clase = estado.replace("*", "").split()[0] if estado.replace("*", "").split() else ""
+        clase = estado.replace("*", "").strip()
         if clase not in ESTADOS:
             rotas.append(f"{INDICE}:{n}: `{archivo}` tiene el estado «{estado}»; se espera uno de {', '.join(ESTADOS)}")
             continue
-        if clase == "derivada":
+        if clase == "derivada sin nombres":
             if origen.split("/")[0] != archivo.split("/")[0]:
                 rotas.append(f"{INDICE}:{n}: `{archivo}` dice derivar de `{origen}`, de otro paso")
         elif origen != archivo:
@@ -373,12 +423,35 @@ def main():
                 return 1
             for linea in ib.stdout.splitlines():
                 m = FILA_INDICE.match(linea)
-                if m and m.group(4).replace("*", "").strip().startswith("derivada"):
+                if m and m.group(4).replace("*", "").strip() == "derivada sin nombres":
                     derivadas_base.add("docs/trazabilidad/" + m.group(1))
         for linea in r.stdout.splitlines():
             revisadas += 1
             estado, ruta = linea.split("\t", 1)
             if estado == "M" and ruta in derivadas_base:
+                # La derivada crece y marca, pero no reescribe: cada decisión de la base sigue
+                # igual, o igual con una nota al final o tachada (las superadas se marcan).
+                antes = subprocess.run(["git", "-C", str(raiz), "show", f"{args.base}:{ruta}"],
+                                       capture_output=True, text=True)
+                if antes.returncode != 0:
+                    print(f"verificar-referencias: QUEDÉ CIEGO, no pude leer {ruta} en {args.base}.")
+                    return 1
+                ahora = {}
+                for fila in (raiz / ruta).read_text(encoding="utf-8").splitlines():
+                    m = FILA_DECISION.match(fila)
+                    if m:
+                        ahora[m.group(1)] = fila.replace("~~", "")
+                for fila in antes.stdout.splitlines():
+                    m = FILA_DECISION.match(fila)
+                    if not m:
+                        continue
+                    revisadas += 1
+                    previa = fila.replace("~~", "").rstrip().rstrip("|").rstrip()
+                    if m.group(1) not in ahora:
+                        rotas.append(f"`{ruta}`: la decisión {m.group(1)} desapareció desde {args.base}")
+                    elif not ahora[m.group(1)].startswith(previa):
+                        rotas.append(f"`{ruta}`: la decisión {m.group(1)} se reescribió desde {args.base};"
+                                     f" una decisión solo se marca (tachada o con una nota al final)")
                 continue
             que = {"M": "cambió", "D": "desapareció", "T": "cambió de tipo"}[estado[0]]
             rotas.append(f"`{ruta}` {que} desde {args.base}: las copias no se reescriben; se agrega una versión nueva")

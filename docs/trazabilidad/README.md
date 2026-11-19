@@ -38,15 +38,18 @@ si:
   no existe;
 - un archivo de esta carpeta es un enlace simbólico;
 - la huella de un archivo no coincide con la de la tabla;
-- el estado no es `idéntica`, `neutralizada` ni `derivada`, o el origen no es coherente: una copia
+- una fila que empieza por un archivo no tiene la forma de la tabla (se lee, no se salta);
+- el estado no es exactamente `idéntica`, `neutralizada` ni `derivada sin nombres`, o el origen no es coherente: una copia
   idéntica o neutralizada tiene que venir del mismo paso y con el mismo nombre, y una derivada, del
   mismo paso. El origen en sí vive en un espacio de trabajo privado y no se puede comprobar desde
   aquí;
 - en la integración continua, que lo corre con `--base`: una copia que ya estaba en la rama base
   cambió, cambió de tipo o desapareció. Las versiones nuevas se agregan, no se reescriben. Sin
   `--base`, cambiar a la vez un archivo y su huella pasaría. Se exceptúa lo que el índice de la
-  base declara `derivada` (el registro de decisiones), que se pone al día con cada decisión; se lee
-  el índice de la base para que una copia no se libre cambiando su estado. La comparación es con la
+  base declara `derivada sin nombres` (el registro de decisiones), que se pone al día con cada
+  decisión; aun así, cada decisión que ya estaba sigue igual, o igual con una nota al final o
+  tachada: las decisiones crecen y se marcan, no se reescriben. Se lee el índice de la base para que
+  una copia no se libre cambiando su estado. La comparación es con la
   base, no commit por commit: por eso los pull requests se unen con *squash* (D-97);
 - un documento vivo (los que lista `scripts/referencias.txt`) cita una ruta, un enlace (en línea,
   entre ángulos o por referencia), una decisión, un requisito, un criterio o un ticket que no
@@ -82,7 +85,7 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 
 | Archivo en el repositorio | Origen en el espacio de trabajo | Huella | Estado |
 |---|---|---|---|
-| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `0f0a4ffc356a` | derivada sin nombres |
+| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `d2d80f130265` | derivada sin nombres |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `498bb231d176` | idéntica |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `a44ff4d5acbc` | idéntica |
 | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `587c5e0e4ceb` | idéntica |

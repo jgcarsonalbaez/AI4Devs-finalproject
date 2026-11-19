@@ -15,7 +15,7 @@
 > - **Lo que se construye para la entrega:** un recorte del MVP con 23 tickets en 11 tramos (`docs/trazabilidad/05-Tickets/Recorte-Entrega-20261119-v4.md`, decisiones D-73 a D-75). Una persona entra con su cuenta, el consultor avisa su inicio con un toque y, al vencer el margen, cada supervisor recibe un correo con los suyos que no avisaron. Todo queda separado por organización y por rol, y desplegado. Meta interna: sábado 05/12/2026 (D-75). Entrega: miércoles 09/12/2026 (R-1).
 > - **Cómo se trabaja:** cada tramo se construye en su propia rama y vuelve por un pull request dentro del fork, con su revisión adversarial guardada (D-90).
 > - **De dónde sale cada cosa:** `docs/trazabilidad/README.md` reúne el registro de decisiones (D-1 a D-99), el PRD, el backlog, los tickets y todas las revisiones. **Si este README y la especificación difieren, manda la especificación.**
-> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en dos lugares: la ficha 0.1, porque la plantilla del curso lo pide (D-92), y los metadatos de cada commit, que git exige (D-98). Esta excepción es posterior al PRD v8 y manda sobre su RNF-8 hasta el PRD v9 (D-99).
+> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en dos lugares: la ficha 0.1, porque la plantilla del curso lo pide (D-92), y los metadatos de cada commit (D-98). El historial conserva además el usuario de la máquina en las rutas de la primera versión de un pull request, como riesgo aceptado (D-97). Esta excepción es posterior al PRD v8 y manda sobre su RNF-8 hasta el PRD v9 (D-99).
 
 ---
 
@@ -298,7 +298,7 @@ flowchart TB
 |---|---|---|
 | `tests/harness/prueba-datos-que-no-salen.py` | Que el hook detiene lo que debe y deja pasar lo que debe, en sus tres modos | 231 |
 | `tests/harness/prueba-instalar-guardarrailes.py` | Que el instalador deja los hooks de git puestos y que funcionan | 52 |
-| `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 52 |
+| `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 64 |
 | `scripts/verificar-referencias.py` | Que toda cita de los documentos vivos resuelve, y que ninguna copia de `docs/trazabilidad/` cambió frente a la base | — |
 
 El paso de pruebas de la aplicación (`pnpm test`) termina en verde sin correr ninguna: las reglas de negocio empiezan en el tramo 2.

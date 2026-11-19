@@ -18,8 +18,10 @@ scripts/*.sh
 docs/revisiones/*-respuesta.md
 # Fuera a propósito: tests/ (sus datos de juguete citan cosas que no existen,
 # para probar que se detectan), el código de la aplicación (todavía no cita) y
-# las corridas del revisor (docs/revisiones/*-corrida*.md): son la opinión de
-# un modelo y pueden citar mal; eso es lo que la respuesta contesta.
+# los informes del revisor (docs/revisiones/<rama>-ronda<N>.md y sus
+# -corrida<M>.md): no los redactamos, son la opinión de un modelo y pueden
+# citar mal; eso es lo que la respuesta contesta. De docs/revisiones/ solo son
+# vivas las respuestas.
 
 [fuentes]
 # familia: archivos donde se define cada identificador (fila de tabla que empieza por él)
@@ -49,3 +51,4 @@ supabase/seed.sql  H-3
 America/Panama  # zona horaria
 feature/entrega-1-JC  # rama de la entrega
 docs/trazabilidad-d91  # rama del PR de trazabilidad
+refs/pull/1/head  # referencia de git del PR en GitHub

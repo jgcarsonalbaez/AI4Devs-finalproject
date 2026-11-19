@@ -12,7 +12,7 @@ Nunca inventar un dato, una regla de negocio ni el resultado de un comando. Si f
 
 ## 2. Datos que no salen
 
-- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto. Única excepción: el nombre del autor, en dos lugares y en ninguno más: la ficha 0.1 del README, que la plantilla del curso pide (D-92), y los metadatos de cada commit, que git exige (D-98).
+- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto. Única excepción: el nombre del autor, en dos lugares y en ninguno más: la ficha 0.1 del README, que la plantilla del curso pide (D-92), y los metadatos de cada commit (D-98). El historial conserva además el usuario de la máquina en las rutas de la primera versión del PR de trazabilidad, como riesgo aceptado (D-97); en lo nuevo, las rutas locales se neutralizan (D-95).
 - Los correos de ejemplo usan `example.com` (valen también `example.org` y `example.net`). Ningún otro dominio.
 - Ningún secreto entra al repositorio. Las variables viven en `.env.local`, que git ignora; `.env.example` lleva solo los nombres, sin valores (`NOMBRE=`).
 - Lo anterior vale igual para el **nombre y la ruta** de un fichero y para el **mensaje del commit**, no solo para el contenido.
@@ -51,7 +51,8 @@ El mensaje de éxito o de error lo redactamos nosotros: si el motor rechaza una 
 - **No se hace `git push` sin aprobación expresa de la Dirección.** El push de `feature/entrega-1-JC` al fork actualiza el pull request de la entrega.
 - **Un pull request por tramo (D-90).** Cada tramo del recorte se construye en su propia rama, que sale de `feature/entrega-1-JC` y vuelve a ella por un pull request dentro del fork. Abrir el pull request es un mensaje a GitHub: pide el OK de la Dirección, que además lo aprueba y lo une. El orden de los tramos no cambia.
 - **Los pull requests se unen con *squash* (D-97).** La rama de la entrega recibe un commit por pull request y no lleva los estados intermedios de la rama. La comprobación de inmutabilidad compara con la rama base, no commit por commit.
-- Ningún pull request se abre sin su revisión adversarial, hecha con un modelo distinto al que escribió el código. Se guarda en `docs/revisiones/<rama>-ronda<N>.md`, con su respuesta en `docs/revisiones/<rama>-ronda<N>-respuesta.md`, y cada observación se cierra de una de tres formas, con su razón: se corrige, se acepta como riesgo o se descarta.
+- **Puerta del tramo 8 (D-99):** el pull request del tramo 8 (HU-06.3, HU-07.3) no se abre si antes no están en `docs/trazabilidad/` los tickets v5 y el PRD v9. Es una puerta de la Dirección, que aprueba cada pull request (D-90); la integración continua no la comprueba.
+- Ningún pull request se abre sin su revisión adversarial, hecha con un modelo distinto al que escribió el código. Se guarda en `docs/revisiones/<rama>-ronda<N>.md` (o `-ronda<N>-corrida<M>.md` cuando la ronda tiene varias corridas), con su respuesta en `docs/revisiones/<rama>-ronda<N>-respuesta.md`, y cada observación se cierra de una de tres formas, con su razón: se corrige, se acepta como riesgo o se descarta.
 - Una tarea termina cuando la CI está en verde en el fork, no cuando el fichero quedó escrito.
 
 ## 7. Documentación al día

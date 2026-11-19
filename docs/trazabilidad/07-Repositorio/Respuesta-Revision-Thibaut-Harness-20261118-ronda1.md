@@ -5,7 +5,7 @@
 - **Material revisado:** los ocho ficheros del harness en el clon, con las huellas que trae el informe.
 - **Decide:** la Dirección. Aprobó la clasificación el 18/11, con las dos decisiones que se le plantearon (hallazgos 3 y 9).
 - **Cómo se verificó cada cita:** los hallazgos 1 a 9 y 14 se reprodujeron ejecutando el hook original en repositorios desechables, con un caso de control (el secreto solo sí bloqueaba). Los hallazgos 10 a 13 y 15 se verificaron leyendo el fichero. Los 15 resultaron ciertos.
-- **Respaldo del estado anterior:** `RespaldoCarson/BackUpTemp/20261118-M2-harness-antes-correcciones-thibaut/` (9 ficheros, tomados antes de modificar).
+- **Respaldo del estado anterior:** `<carpeta-de-respaldos>/20261118-M2-harness-antes-correcciones-thibaut/` (9 ficheros, tomados antes de modificar).
 
 ## Resultado
 

@@ -5,7 +5,7 @@ Puedes añadir adicionalmente la conversación completa como link o archivo adju
 >
 > **Regla del proyecto:** el agente propone, la Dirección decide. Cada decisión registrada lleva su fundamento; las superadas se tachan, no se borran.
 >
-> **Actualización del jueves 19/11/2026.** Las secciones 1 a 7 son las de la entrega 1 y citan las decisiones de entonces (D-1 a D-17). Desde noviembre el trabajo se registra en la sección 8, pieza por pieza. **Todo lo que este archivo cita se puede comprobar en el repositorio:** el registro de decisiones (hoy D-1 a D-91) está en `docs/trazabilidad/01-Discovery/discovery-controlador-tiempo.md`, y cada paso del método —PRD, backlog, tickets, especificación— está en `docs/trazabilidad/` con sus revisiones. Las revisiones adversariales las hace un modelo de otro proveedor, distinto del que redacta; el modelo exacto de cada una está en su cabecera.
+> **Actualización del jueves 19/11/2026.** Las secciones 1 a 7 son las de la entrega 1 y citan las decisiones de entonces (D-1 a D-17). Desde noviembre el trabajo se registra en la sección 8, pieza por pieza. **Todo lo que este archivo cita se puede comprobar en el repositorio:** el registro de decisiones (hoy D-1 a D-99) está en `docs/trazabilidad/01-Discovery/discovery-controlador-tiempo.md`, y cada paso del método —PRD, backlog, tickets, especificación— está en `docs/trazabilidad/` con sus revisiones. Las revisiones adversariales las hace un modelo de otro proveedor, distinto del que redacta; el modelo exacto de cada una está en su cabecera.
 
 ## Índice
 
@@ -297,6 +297,16 @@ Debemos cuidar la integridad referencial (trazabilidad) en todo lo que subimos.
 *La revisión adversarial del propio cambio* (dos corridas, `docs/revisiones/`) encontró que la primera versión del verificador prometía más de lo que comprobaba: no miraba los criterios `HU-xx.CA-n`, ni los enlaces, ni el origen del índice. Además, cambiar a la vez una copia y su huella pasaba en verde. Se corrigió antes de abrir el pull request; la respuesta a cada hallazgo está junto a la revisión.
 
 *Ajuste humano:* un pull request por tramo (D-90). La Dirección aprobó el control y pidió subir la cadena completa.
+
+*La segunda ronda* la pidió la Dirección antes de unir el pull request, porque las correcciones de la primera no habían pasado por el revisor:
+
+```text
+Lo primero: la segunda ronda de Thibaut sobre el PR antes de que yo lo una.
+```
+
+*Lo que se torció:* casi todo lo que encontró nació de las correcciones de la primera ronda: el verificador reconocía los criterios completos pero no las abreviaturas («HU-03.CA-1 a CA-3»), y tres documentos seguían diciendo «D-1 a D-91». Lo más serio lo halló el agente al comprobar el commit de las rutas neutralizadas contra el propio verificador: reescribía 28 copias y la integración continua no lo vio, porque la rama se subió nueva; y la regla de inmutabilidad trataba como copia fija al registro de decisiones, así que la siguiente decisión habría puesto la integración continua en rojo. Además, dos decisiones nuevas (D-92 y D-94) contradecían al PRD v8, y lo que D-94 decía que cubría el riesgo era un supuesto.
+
+*Ajuste humano:* la Dirección aprobó las correcciones y cuatro decisiones (D-96 a D-99): D-94 sin cobertura mientras tanto, dicho así; aceptar que las rutas de la primera versión sigan en el historial y unir con *squash*; el nombre del autor también en los metadatos del commit; y los tickets v5 con el PRD v9 antes del tramo 8, no en el colchón.
 
 ---
 

@@ -35,7 +35,9 @@ SIN_DEFINIR = {"D": "D-99", "PA": "PA-99", "PA-B": "PA-B99", "PA-P": "PA-P99", "
                "N": "N-99"}
 
 FUENTES = "\n".join(
-    ["| ~~**D-2**~~ | una decisión superada |", "| **H-4 (nuevo)** | un ticket nuevo |"]
+    ["| ~~**D-2**~~ | una decisión superada |", "| **H-4 (nuevo)** | un ticket nuevo |",
+     "| D-3 | para los rangos |", "| RF-3 | para los rangos |",
+     "| HU-01.CA-2 | para las abreviaturas |", "| HU-01.CA-3 | para las abreviaturas |"]
     + [f"| {i} | definido |" for f, i in DEFINIDOS.items() if f != "H"])
 
 DOC_SANO = "\n".join([
@@ -52,8 +54,12 @@ def huella(texto):
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:12]
 
 
+REGISTRO = "registro derivado"
+
+
 def montar(dir_, doc=DOC_SANO, previstas="", indice_extra="", huella_mala=False, sin_config=False,
-           sin_fuente=False, archivo_extra=False, duplicado=False, origen="01-Paso/a.md"):
+           sin_fuente=False, archivo_extra=False, duplicado=False, origen="01-Paso/a.md", estado="idéntica",
+           origen_derivada="01-Paso/registro-privado.md (fuente privada)", enlace_simbolico=False):
     raiz = Path(dir_)
     (raiz / "scripts").mkdir()
     shutil.copy(VERIFICADOR, raiz / "scripts" / "verificar-referencias.py")
@@ -65,6 +71,7 @@ def montar(dir_, doc=DOC_SANO, previstas="", indice_extra="", huella_mala=False,
     # En una subcarpeta: junto al documento la cita resolvería sin buscar, y es legítima.
     (raiz / "sub").mkdir()
     (raiz / "sub" / "unico.txt").write_text("x", encoding="utf-8")
+    (raiz / "sub" / "con espacio.txt").write_text("z", encoding="utf-8")
     if duplicado:
         (raiz / "otra").mkdir()
         (raiz / "otra" / "unico.txt").write_text("y", encoding="utf-8")
@@ -72,11 +79,18 @@ def montar(dir_, doc=DOC_SANO, previstas="", indice_extra="", huella_mala=False,
     paso.mkdir(parents=True)
     contenido = "copia fechada"
     (paso / "a.md").write_text(contenido, encoding="utf-8")
+    (paso / "registro.md").write_text(REGISTRO, encoding="utf-8")
     if archivo_extra:
         (paso / "b.md").write_text("sin fila en el índice", encoding="utf-8")
+    if enlace_simbolico:
+        (paso / "enlace.md").symlink_to("a.md")
     h = "000000000000" if huella_mala else huella(contenido)
     indice = ("| Archivo | Origen | Huella | Estado |\n|---|---|---|---|\n"
-              f"| `01-Paso/a.md` | `{origen}` | `{h}` | idéntica |\n" + indice_extra)
+              f"| `01-Paso/a.md` | `{origen}` | `{h}` | {estado} |\n"
+              f"| `01-Paso/registro.md` | `{origen_derivada}` | `{huella(REGISTRO)}` | derivada sin nombres |\n"
+              + (f"| `01-Paso/enlace.md` | `01-Paso/enlace.md` | `{huella(contenido)}` | idéntica |\n"
+                 if enlace_simbolico else "")
+              + indice_extra)
     (raiz / "docs" / "trazabilidad" / "README.md").write_text(indice, encoding="utf-8")
     return raiz
 
@@ -107,6 +121,27 @@ def con_git(dir_, cambio):
         (copia.parent / "a-v2.md").write_text("versión nueva", encoding="utf-8")
         with indice.open("a", encoding="utf-8") as f:
             f.write(f"| `01-Paso/a-v2.md` | `01-Paso/a-v2.md` | `{huella('versión nueva')}` | idéntica |\n")
+    elif cambio == "borrar":     # la copia desaparece junto con su fila
+        copia.unlink()
+        indice.write_text("\n".join(l for l in indice.read_text(encoding="utf-8").splitlines()
+                                    if "`01-Paso/a.md`" not in l) + "\n", encoding="utf-8")
+    elif cambio == "tipo":       # la copia pasa a ser un enlace simbólico a otro archivo
+        copia.unlink()
+        copia.symlink_to("../../../sub/unico.txt")
+        indice.write_text(indice.read_text(encoding="utf-8").replace(huella("copia fechada"), huella("x")),
+                          encoding="utf-8")
+    elif cambio == "derivada":   # el registro derivado se pone al día: es lo esperado
+        registro = copia.parent / "registro.md"
+        registro.write_text(REGISTRO + " con una decisión más", encoding="utf-8")
+        indice.write_text(indice.read_text(encoding="utf-8").replace(
+            huella(REGISTRO), huella(REGISTRO + " con una decisión más")), encoding="utf-8")
+    elif cambio == "reetiquetar":   # reescribe la copia y la declara «derivada» para librarse
+        copia.write_text("copia alterada", encoding="utf-8")
+        texto = indice.read_text(encoding="utf-8").replace(huella("copia fechada"), huella("copia alterada"))
+        indice.write_text(texto.replace(
+            f"| `01-Paso/a.md` | `01-Paso/a.md` | `{huella('copia alterada')}` | idéntica |",
+            f"| `01-Paso/a.md` | `01-Paso/a.md` | `{huella('copia alterada')}` | derivada sin nombres |"),
+            encoding="utf-8")
     return raiz
 
 
@@ -116,7 +151,32 @@ CASOS = [
     ("negativo: ruta que no existe", lambda d: correr(montar(d, doc=DOC_SANO + "\nVer `no/existe.md`.")), 1,
      "la ruta `no/existe.md` no existe"),
     ("negativo: enlace Markdown que no existe", lambda d: correr(montar(d, doc=DOC_SANO + "\n[fuente](docs/no-existe.md)")),
-     1, "la ruta `docs/no-existe.md` no existe"),
+     1, "el enlace a `docs/no-existe.md` no existe"),
+    ("positivo: enlaces entre ángulos, con título, con %20 y por referencia que existen",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n[a](<sub/con espacio.txt>) [b](sub/con%20espacio.txt \"título\")"
+                                               "\n[r]: /sub/unico.txt")), 0, "toda referencia resuelve"),
+    ("positivo: lo que parece enlace dentro de código en línea no se revisa",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nEn el código, `x[i](no/existe)` no es un enlace.")), 0,
+     "toda referencia resuelve"),
+    ("negativo: enlace entre ángulos que no existe",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n[a](<no existe.md>)")), 1, "el enlace a `no existe.md` no existe"),
+    ("negativo: enlace desde la raíz que no existe",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n[a](/docs/no-existe.md)")), 1, "el enlace a `/docs/no-existe.md` no existe"),
+    ("negativo: enlace por referencia que no existe",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\n[r]: no/ref.md")), 1, "el enlace a `no/ref.md` no existe"),
+    ("positivo: criterios abreviados y rango de criterios definidos",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nSegún HU-01.CA-1, CA-2 y CA-3, y HU-01.CA-1 a CA-3.")), 0,
+     "toda referencia resuelve"),
+    ("negativo: criterio abreviado sin definir",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nSegún HU-01.CA-1, CA-99.")), 1, "HU-01.CA-99 (dentro"),
+    ("negativo: rango de criterios con uno sin definir",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nSegún HU-01.CA-1 a CA-4.")), 1, "HU-01.CA-4 (dentro"),
+    ("positivo: rango con el interior definido", lambda d: correr(montar(d, doc=DOC_SANO + "\nDe D-1 a D-3.")), 0,
+     "toda referencia resuelve"),
+    ("negativo: rango con un interior sin definir",
+     lambda d: correr(montar(d, doc=DOC_SANO + "\nDe RF-1 a RF-3.")), 1, "RF-2 (dentro"),
+    ("negativo: rango al revés", lambda d: correr(montar(d, doc=DOC_SANO + "\nDe D-3 a D-1.")), 1,
+     "no es un intervalo válido"),
     ("negativo: numeración retirada sin aviso", lambda d: correr(montar(d, doc=DOC_SANO + "\nVer T-07.")), 1,
      "numeración retirada T-07"),
     ("positivo: ruta prevista con ticket válido",
@@ -136,6 +196,17 @@ CASOS = [
      "el índice cita `01-Paso/z.md`, que no existe"),
     ("negativo: origen de una copia que no coincide", lambda d: correr(montar(d, origen="otro/no-existe.md")), 1,
      "pero su origen es `otro/no-existe.md`"),
+    ("positivo: copia neutralizada con su origen", lambda d: correr(montar(d, estado="**neutralizada**")), 0,
+     "toda referencia resuelve"),
+    ("negativo: estado que no existe", lambda d: correr(montar(d, estado="revisada")), 1, "tiene el estado «revisada»"),
+    ("negativo: derivada de otro paso",
+     lambda d: correr(montar(d, origen_derivada="02-Otro/registro-privado.md (fuente privada)")), 1,
+     "dice derivar de `02-Otro/registro-privado.md (fuente privada)`, de otro paso"),
+    ("negativo: archivo dos veces en el índice",
+     lambda d: correr(montar(d, indice_extra=f"| `01-Paso/a.md` | `01-Paso/a.md` | `{huella('copia fechada')}` | idéntica |\n")),
+     1, "aparece dos veces en el índice"),
+    ("negativo: enlace simbólico dentro de la cadena", lambda d: correr(montar(d, enlace_simbolico=True)), 1,
+     "es un enlace simbólico"),
     ("negativo: sin configuración queda ciego y falla", lambda d: correr(montar(d, sin_config=True)), 1, "QUEDÉ CIEGO"),
     ("negativo: sin fuente queda ciego y falla", lambda d: correr(montar(d, sin_fuente=True)), 1, "QUEDÉ CIEGO"),
     ("positivo: agregar una versión nueva no rompe la inmutabilidad",
@@ -146,6 +217,14 @@ CASOS = [
      "`docs/trazabilidad/01-Paso/a.md` cambió desde HEAD"),
     ("negativo: --base con una referencia que no existe queda ciego",
      lambda d: correr(con_git(d, "agregar"), "--base", "no-existe"), 1, "QUEDÉ CIEGO"),
+    ("negativo: con --base, una copia que desaparece", lambda d: correr(con_git(d, "borrar"), "--base", "HEAD"), 1,
+     "`docs/trazabilidad/01-Paso/a.md` desapareció desde HEAD"),
+    ("negativo: con --base, una copia cambiada por un enlace simbólico",
+     lambda d: correr(con_git(d, "tipo"), "--base", "HEAD"), 1, "`docs/trazabilidad/01-Paso/a.md` cambió de tipo"),
+    ("positivo: con --base, la derivada se pone al día", lambda d: correr(con_git(d, "derivada"), "--base", "HEAD"), 0,
+     "toda referencia resuelve"),
+    ("negativo: con --base, reetiquetar una copia como derivada no la libra",
+     lambda d: correr(con_git(d, "reetiquetar"), "--base", "HEAD"), 1, "`docs/trazabilidad/01-Paso/a.md` cambió desde HEAD"),
 ] + [
     (f"negativo: identificador sin definir de la familia {f}",
      (lambda i: lambda d: correr(montar(d, doc=DOC_SANO + f"\nSegún {i}.")))(i), 1, f"{i} no está definido")

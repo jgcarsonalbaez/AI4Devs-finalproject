@@ -10,23 +10,33 @@ por fuera aunque cite algo que ya no está; solo comprobarlo lo delata.
 Qué revisa, con la configuración de `scripts/referencias.txt`:
 
   1. Rutas. En los documentos vivos, lo que va entre comillas invertidas con
-     forma de ruta, y el destino de cada enlace Markdown, debe existir: junto
-     al documento, desde la raíz o dentro de `docs/trazabilidad/`. Lo que aún
-     no existe porque lo crea un ticket futuro va en [previstas], con ese
-     ticket; si ya existe, sobra ahí.
+     forma de ruta debe existir: junto al documento, desde la raíz o dentro de
+     `docs/trazabilidad/`. El destino de cada enlace Markdown que no sea web
+     también, en sus tres formas: en línea `[t](destino "título")`, entre
+     ángulos `[t](<destino con espacios>)` y por referencia `[id]: destino`;
+     un destino que empieza por `/` se busca desde la raíz y `%20` se lee como
+     espacio. Lo que aún no existe porque lo crea un ticket futuro va en
+     [previstas], con ese ticket; si ya existe, sobra ahí.
   2. Identificadores. Cada identificador citado en un documento vivo (ver
      FAMILIAS) debe estar definido en su fuente: una fila de tabla que empieza
-     por él.
+     por él. Las formas abreviadas también: en «HU-03.CA-1, CA-2 y CA-5» se
+     comprueban los tres criterios, y en un rango «X-1 a X-9» (o «HU-03.CA-1 a
+     CA-3») se comprueba cada número del intervalo, no solo los extremos.
   3. Numeración retirada. Los tickets T-nn de la entrega 1 se sustituyeron por
      HU-xx.y y H-n; solo se admiten en una línea que diga «numeración anterior».
   4. Índice de la cadena. Cada archivo de `docs/trazabilidad/` está en la tabla
-     de `docs/trazabilidad/README.md` y al revés; la huella (12 primeros
-     caracteres de su SHA-256) coincide; y el origen declarado es coherente: una
-     copia idéntica o neutralizada viene del mismo paso y con el mismo nombre.
+     de `docs/trazabilidad/README.md` una sola vez y al revés; ninguno es un
+     enlace simbólico; la huella (12 primeros caracteres de su SHA-256)
+     coincide; el estado es uno de `idéntica`, `neutralizada` o `derivada`; y
+     el origen es coherente: una copia idéntica o neutralizada viene del mismo
+     paso y con el mismo nombre, y una derivada, del mismo paso.
   5. Inmutabilidad (solo con --base REF). Una copia de `docs/trazabilidad/` que
-     ya existía en REF no puede haber cambiado ni desaparecido: las versiones
-     nuevas se agregan, no se reescriben. Sin esto, cambiar a la vez un archivo
-     y su huella en el índice pasaría en verde.
+     ya existía en REF no puede haber cambiado, cambiado de tipo ni
+     desaparecido: las versiones nuevas se agregan, no se reescriben. Sin esto,
+     cambiar a la vez un archivo y su huella en el índice pasaría en verde. La
+     excepción son los archivos que el índice de REF declara `derivada`: se
+     mantienen al día por diseño (el registro de decisiones). Se lee el índice
+     de REF, no el actual, para que una copia no se libre cambiando su estado.
 
 Lo que NO revisa, a propósito:
   - Si lo citado dice lo que el documento afirma que dice. Eso lo revisa una
@@ -35,7 +45,14 @@ Lo que NO revisa, a propósito:
     faltan.
   - Las pruebas de `tests/`: sus datos de juguete citan a propósito cosas que
     no existen, para probar que se detectan.
+  - Las corridas del revisor (`docs/revisiones/*-corrida*.md`): son la opinión
+    de un modelo y pueden citar mal; justo eso es lo que se responde. Las
+    respuestas sí son documentos vivos.
   - El origen fuera del repositorio: el espacio de trabajo es privado.
+  - Los commits intermedios: la inmutabilidad compara REF con el estado final.
+    Un archivo agregado y reescrito dentro de la misma rama sin unir no se ve;
+    por eso los PR se unen con squash (D-97) y en la rama de la entrega no
+    queda el estado intermedio.
 
 Los mensajes los escribe este script, no el intérprete: si no puede leer una
 fuente, lo dice y falla; nunca da por bueno lo que no pudo mirar.
@@ -49,13 +66,22 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 EXTENSIONES = (".md", ".py", ".sh", ".sql", ".ts", ".tsx", ".json", ".yml", ".yaml",
                ".css", ".mjs", ".html", ".txt")
 CANDIDATO_RUTA = re.compile(r"`([^`\n]+)`")
-ENLACE_MD = re.compile(r"\]\(([^)\s]+)\)")
+# Enlace en línea: [t](destino), [t](destino "título"), [t](<destino con espacios>).
+ENLACE_MD = re.compile(r"\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)")
+# Definición de un enlace por referencia: «[id]: destino».
+ENLACE_REF = re.compile(r"^\s{0,3}\[[^\]\n]+\]:\s*(<[^>\n]*>|\S+)")
 INDICE = "docs/trazabilidad/README.md"
 FILA_INDICE = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*`([0-9a-f]{12})`\s*\|\s*([^|]+)\|")
+ESTADOS = ("idéntica", "neutralizada", "derivada")
+# Abreviaturas de criterios tras uno completo: «HU-03.CA-1, CA-2 y CA-5», «HU-03.CA-1 a CA-3».
+CA_LISTA = re.compile(r"\b(HU-\d{2})\.CA-(\d+)((?:\s*(?:,\s*(?:y\s+)?|y\s+|a\s+)CA-\d+)+)")
+CA_SIGUIENTE = re.compile(r"(,\s*(?:y\s+)?|y\s+|a\s+)CA-(\d+)")
+RANGO_MAX = 200   # un rango más largo se toma por error de escritura y se marca
 IGNORADOS = {".git", "node_modules", ".next"}
 COMANDOS = {"python3", "python", "bash", "sh", "node", "pnpm"}
 
@@ -81,10 +107,55 @@ FAMILIAS = {
 }
 RETIRADO = re.compile(r"\bT-\d{2}\b")
 PERMISO_RETIRADO = "numeración anterior"
+# Rango «X-1 a X-9» con el mismo prefijo a los dos lados (D-, RF-, PA-B…).
+RANGO = re.compile(r"(?<![A-Za-z.-])(PA-[BP]|[A-Z]{1,3}-)(\d+) a \1(\d+)\b")
 
 
 def definido(identificador, texto_fuente):
     return re.search(r"(?m)^\|\s*[~*]*" + re.escape(identificador) + r"(?![\d.])", texto_fuente) is not None
+
+
+def familia_de(identificador):
+    for familia, patron in FAMILIAS.items():
+        if re.fullmatch(patron.replace(r"\b", "").replace("(?<![A-Za-z-])", ""), identificador):
+            return familia
+    return None
+
+
+def interiores(linea):
+    """Lo que un rango o una abreviatura cita sin escribirlo entero: [(familia, id)] y errores."""
+    citados, errores = [], []
+    for m in RANGO.finditer(linea):
+        prefijo, a, b = m.group(1), int(m.group(2)), int(m.group(3))
+        familia = familia_de(f"{prefijo}{a}")
+        if familia is None:
+            continue
+        if b <= a or b - a > RANGO_MAX:
+            errores.append(f"el rango «{m.group(0)}» no es un intervalo válido")
+            continue
+        citados += [(familia, f"{prefijo}{k}") for k in range(a + 1, b)]
+    for m in CA_LISTA.finditer(linea):
+        hu, previo = m.group(1), int(m.group(2))
+        for s in CA_SIGUIENTE.finditer(m.group(3)):
+            n = int(s.group(2))
+            if s.group(1).strip() == "a":
+                if n <= previo or n - previo > RANGO_MAX:
+                    errores.append(f"el rango «{hu}.CA-{previo} a CA-{n}» no es un intervalo válido")
+                else:
+                    citados += [("CA", f"{hu}.CA-{k}") for k in range(previo + 1, n + 1)]
+            else:
+                citados.append(("CA", f"{hu}.CA-{n}"))
+            previo = n
+    return citados, errores
+
+
+def destino_enlace(crudo):
+    """Destino de un enlace listo para buscar, o None si no es un archivo del repositorio."""
+    d = crudo[1:-1] if crudo.startswith("<") and crudo.endswith(">") else crudo
+    d = unquote(d.split("#")[0].split("?")[0]).strip()
+    if not d or d.startswith(("http:", "https:", "mailto:", "ftp:")):
+        return None
+    return d
 
 
 def leer_config(ruta):
@@ -120,6 +191,8 @@ def parece_ruta(texto, no_son_rutas):
 
 def resuelve(texto, doc, raiz):
     rel = texto.rstrip("/")
+    if rel.startswith("/"):   # enlace absoluto dentro del repositorio: desde la raíz
+        return (raiz / rel.lstrip("/")).exists()
     for base in (doc.parent, raiz, raiz / "docs" / "trazabilidad"):
         if (base / rel).exists():
             return True
@@ -190,10 +263,6 @@ def main():
                 partes = m.group(1).strip().split()
                 # Un comando («python3 scripts/x.py»): se revisan las rutas que lleva.
                 candidatos += partes[1:] if partes and partes[0] in COMANDOS else [m.group(1).strip()]
-            for m in ENLACE_MD.finditer(linea):
-                destino = m.group(1).split("#")[0]
-                if destino and not destino.startswith(("http", "mailto:")):
-                    candidatos.append(destino)
             for texto in candidatos:
                 if not parece_ruta(texto, no_son_rutas):
                     continue
@@ -201,11 +270,34 @@ def main():
                 if resuelve(texto, doc, raiz) or texto.rstrip("/") in previstas:
                     continue
                 rotas.append(f"{rel_doc}:{n}: la ruta `{texto}` no existe y no está en [previstas]")
+            # Los enlaces se revisan siempre: no pasan por la heurística de «parece ruta».
+            # Solo en Markdown: en el código, «x[i](y)» no es un enlace.
+            # Y fuera del código en línea: «`x[i](y)`» tampoco es un enlace.
+            enlaces = []
+            if doc.suffix == ".md":
+                sin_codigo = CANDIDATO_RUTA.sub("``", linea)
+                enlaces = [m.group(1) for m in ENLACE_MD.finditer(sin_codigo)]
+                enlaces += [m.group(1) for m in ENLACE_REF.finditer(sin_codigo)]
+            for crudo in enlaces:
+                destino = destino_enlace(crudo)
+                if destino is None:
+                    continue
+                revisadas += 1
+                if resuelve(destino, doc, raiz) or destino.rstrip("/") in previstas:
+                    continue
+                rotas.append(f"{rel_doc}:{n}: el enlace a `{destino}` no existe y no está en [previstas]")
             for familia, patron in FAMILIAS.items():
                 for m in re.finditer(patron, linea):
                     revisadas += 1
                     if not definido(m.group(1), fuentes[familia]):
                         rotas.append(f"{rel_doc}:{n}: {m.group(1)} no está definido en su fuente")
+            citados, errores = interiores(linea)
+            for familia, identificador in citados:
+                revisadas += 1
+                if not definido(identificador, fuentes[familia]):
+                    rotas.append(f"{rel_doc}:{n}: {identificador} (dentro de una abreviatura o un rango)"
+                                 f" no está definido en su fuente")
+            rotas += [f"{rel_doc}:{n}: {e}" for e in errores]
             if RETIRADO.search(linea) and PERMISO_RETIRADO not in linea:
                 revisadas += 1
                 rotas.append(f"{rel_doc}:{n}: usa la numeración retirada {RETIRADO.search(linea).group(0)}"
@@ -230,9 +322,16 @@ def main():
         if not m:
             continue
         archivo, origen, h, estado = m.group(1), m.group(2), m.group(3), m.group(4).strip()
-        en_indice[archivo] = (h, n)
         revisadas += 1
-        if "derivada" in estado:
+        if archivo in en_indice:
+            rotas.append(f"{INDICE}:{n}: `{archivo}` aparece dos veces en el índice (la otra en la línea {en_indice[archivo][1]})")
+            continue
+        en_indice[archivo] = (h, n)
+        clase = estado.replace("*", "").split()[0] if estado.replace("*", "").split() else ""
+        if clase not in ESTADOS:
+            rotas.append(f"{INDICE}:{n}: `{archivo}` tiene el estado «{estado}»; se espera uno de {', '.join(ESTADOS)}")
+            continue
+        if clase == "derivada":
             if origen.split("/")[0] != archivo.split("/")[0]:
                 rotas.append(f"{INDICE}:{n}: `{archivo}` dice derivar de `{origen}`, de otro paso")
         elif origen != archivo:
@@ -240,6 +339,11 @@ def main():
     base = raiz / "docs" / "trazabilidad"
     en_disco = {p.relative_to(base).as_posix() for p in base.rglob("*")
                 if p.is_file() and p.name != "README.md" and not p.name.startswith(".")}
+    for p in sorted(base.rglob("*")):
+        if p.is_symlink():
+            revisadas += 1
+            rotas.append(f"`docs/trazabilidad/{p.relative_to(base).as_posix()}` es un enlace simbólico:"
+                         f" las copias son archivos")
     for rel in sorted(en_disco - set(en_indice)):
         rotas.append(f"{INDICE}: falta en el índice `{rel}`")
     for rel, (h, n) in sorted(en_indice.items()):
@@ -251,16 +355,32 @@ def main():
 
     # --- 5: inmutabilidad frente a una referencia de git ---------------------
     if args.base:
-        r = subprocess.run(["git", "-C", str(raiz), "diff", "--no-renames", "--name-status", "--diff-filter=MD",
+        r = subprocess.run(["git", "-C", str(raiz), "diff", "--no-renames", "--name-status", "--diff-filter=MDT",
                             args.base, "--", "docs/trazabilidad", ":(exclude)docs/trazabilidad/README.md"],
                            capture_output=True, text=True)
         if r.returncode != 0:
             print(f"verificar-referencias: QUEDÉ CIEGO, no pude comparar con {args.base} ({r.stderr.strip()}).")
             return 1
+        # Las derivadas se mantienen al día: se exceptúan según el índice de la BASE.
+        derivadas_base = set()
+        existe = subprocess.run(["git", "-C", str(raiz), "cat-file", "-e", f"{args.base}:{INDICE}"],
+                                capture_output=True, text=True)
+        if existe.returncode == 0:
+            ib = subprocess.run(["git", "-C", str(raiz), "show", f"{args.base}:{INDICE}"],
+                                capture_output=True, text=True)
+            if ib.returncode != 0:
+                print(f"verificar-referencias: QUEDÉ CIEGO, no pude leer el índice de {args.base} ({ib.stderr.strip()}).")
+                return 1
+            for linea in ib.stdout.splitlines():
+                m = FILA_INDICE.match(linea)
+                if m and m.group(4).replace("*", "").strip().startswith("derivada"):
+                    derivadas_base.add("docs/trazabilidad/" + m.group(1))
         for linea in r.stdout.splitlines():
             revisadas += 1
             estado, ruta = linea.split("\t", 1)
-            que = "cambió" if estado == "M" else "desapareció"
+            if estado == "M" and ruta in derivadas_base:
+                continue
+            que = {"M": "cambió", "D": "desapareció", "T": "cambió de tipo"}[estado[0]]
             rotas.append(f"`{ruta}` {que} desde {args.base}: las copias no se reescriben; se agrega una versión nueva")
 
     # --- resultado ----------------------------------------------------------

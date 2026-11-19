@@ -14,8 +14,8 @@
 > - **Lo que ya está construido:** la estructura de la aplicación (Next.js, ticket H-2), la integración continua en verde en el fork, el harness (reglas de `CLAUDE.md`, hook de datos que no salen, plantilla de migración controlada, verificador de referencias) y la **especificación aprobada** (D-89): `openspec/specs/acceso/spec.md`, `openspec/specs/aviso-inicio/spec.md` y `openspec/specs/no-reportados/spec.md`, con 32 requisitos y 134 escenarios, tras siete rondas de revisión adversarial. Todavía no hay funciones de negocio: empiezan en el tramo 2.
 > - **Lo que se construye para la entrega:** un recorte del MVP con 23 tickets en 11 tramos (`docs/trazabilidad/05-Tickets/Recorte-Entrega-20261119-v4.md`, decisiones D-73 a D-75). Una persona entra con su cuenta, el consultor avisa su inicio con un toque y, al vencer el margen, cada supervisor recibe un correo con los suyos que no avisaron. Todo queda separado por organización y por rol, y desplegado. Meta interna: sábado 05/12/2026 (D-75). Entrega: miércoles 09/12/2026 (R-1).
 > - **Cómo se trabaja:** cada tramo se construye en su propia rama y vuelve por un pull request dentro del fork, con su revisión adversarial guardada (D-90).
-> - **De dónde sale cada cosa:** `docs/trazabilidad/README.md` reúne el registro de decisiones (D-1 a D-91), el PRD, el backlog, los tickets y todas las revisiones. **Si este README y la especificación difieren, manda la especificación.**
-> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en la ficha 0.1, porque la plantilla del curso lo pide (D-92).
+> - **De dónde sale cada cosa:** `docs/trazabilidad/README.md` reúne el registro de decisiones (D-1 a D-99), el PRD, el backlog, los tickets y todas las revisiones. **Si este README y la especificación difieren, manda la especificación.**
+> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en dos lugares: la ficha 0.1, porque la plantilla del curso lo pide (D-92), y los metadatos de cada commit, que git exige (D-98). Esta excepción es posterior al PRD v8 y manda sobre su RNF-8 hasta el PRD v9 (D-99).
 
 ---
 
@@ -35,7 +35,7 @@ Herramienta interna para empresas de *staff augmentation* que asignan consultore
 
 ### **0.4. URL del proyecto:**
 
-Pendiente. La aplicación se despliega en el último tramo, con el ticket H-4, que además comprueba tres cosas: que un correo de ejemplo llega a un buzón, que avisar toma menos de 5 segundos con sesión vigente, y que las pruebas del servicio de autenticación se repiten contra el servicio gestionado. La especificación le encarga además comprobar el límite de intentos de entrada y **qué dirección ve el servicio** (riesgos aceptados de `openspec/specs/acceso/spec.md`, D-72). El recorte v4 todavía no lo lista: se agrega a H-4 en los tickets v5.
+Pendiente. La aplicación se despliega en el último tramo, con el ticket H-4, que además comprueba tres cosas: que un correo de ejemplo llega a un buzón, que avisar toma menos de 5 segundos con sesión vigente, y que las pruebas del servicio de autenticación se repiten contra el servicio gestionado. La especificación le encarga además comprobar el límite de intentos de entrada y **qué dirección ve el servicio** (riesgos aceptados de `openspec/specs/acceso/spec.md`, D-72). El recorte v4 todavía no lo lista: se agrega a H-4 en los tickets v5, que se escriben antes del tramo 8 (D-99).
 
 ### 0.5. URL o archivo comprimido del repositorio
 
@@ -98,7 +98,8 @@ https://github.com/jgcarsonalbaez/AI4Devs-finalproject — fork del repositorio 
 - el aviso es una declaración, no una verificación (RA-5);
 - tras una caída, o si se pierde la confirmación del servicio de correo, puede salir un correo repetido (RA-6, D-82);
 - el límite de intentos de entrada es por dirección IP y no por cuenta (RA-10);
-- un margen que vence pasada la medianoche no se reporta (RA-12).
+- un margen que vence pasada la medianoche no se reporta (RA-12);
+- tras una caída que cruza la medianoche, lo del día anterior no se reporta, y nada lo avisa mientras tanto (D-94, D-96). Es posterior al PRD v8 y manda sobre su RNF-4 hasta el PRD v9.
 
 ### **1.3. Diseño y experiencia de usuario:**
 
@@ -137,8 +138,10 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 python3 tests/harness/prueba-datos-que-no-salen.py
 python3 tests/harness/prueba-instalar-guardarrailes.py
 python3 tests/harness/prueba-verificar-referencias.py
-python3 scripts/verificar-referencias.py
+python3 scripts/verificar-referencias.py --base origin/feature/entrega-1-JC
 ```
+
+Sin `--base`, el verificador no comprueba que las copias de `docs/trazabilidad/` sigan iguales; la integración continua sí lo hace, contra la rama base.
 
 Al clonar en una máquina nueva se instalan los hooks de git con `bash scripts/instalar-guardarrailes.sh`; los pasos que siguen están en `CLAUDE.md`, sección 8.
 
@@ -285,7 +288,7 @@ flowchart TB
 | **Ejecución recurrente** | Solo con su secreto, comparado sin que importe cuántos caracteres coinciden; la sesión de una persona no sirve; su respuesta no devuelve datos de personas | E-6 |
 | **Correo** | Solo texto sin formato, con seis datos; nada de lo que traen los datos se interpreta como enlace o formato | HU-07.CA-17, RNF-6 |
 | **Datos que no salen** | El hook detiene el commit con secretos, nombres o dominios reales, ficheros `.env` o binarios que no sean imágenes, y deja una línea en `docs/seguridad/registro-de-bloqueos.md`. La lista de nombres reales vive fuera del repositorio, que es público | R-5, RNF-8 |
-| **Integridad referencial** | `scripts/verificar-referencias.py` falla si, en un documento vivo, una cita apunta a una ruta, decisión, requisito, criterio o ticket que no existe. En la integración continua falla además si una copia de `docs/trazabilidad/` cambió o desapareció frente a la rama base. Comprueba las citas que hay, no si falta alguna; los documentos que revisa están en `scripts/referencias.txt` | D-91 |
+| **Integridad referencial** | `scripts/verificar-referencias.py` falla si, en un documento vivo, una cita apunta a una ruta, decisión, requisito, criterio o ticket que no existe. En la integración continua falla además si una copia de `docs/trazabilidad/` cambió, cambió de tipo o desapareció frente a la rama base (el registro de decisiones, derivado, se pone al día por diseño). Comprueba las citas que hay, no si falta alguna; los documentos que revisa están en `scripts/referencias.txt` | D-91, D-97 |
 
 ### **2.6. Tests**
 
@@ -295,7 +298,7 @@ flowchart TB
 |---|---|---|
 | `tests/harness/prueba-datos-que-no-salen.py` | Que el hook detiene lo que debe y deja pasar lo que debe, en sus tres modos | 231 |
 | `tests/harness/prueba-instalar-guardarrailes.py` | Que el instalador deja los hooks de git puestos y que funcionan | 52 |
-| `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 32 |
+| `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 52 |
 | `scripts/verificar-referencias.py` | Que toda cita de los documentos vivos resuelve, y que ninguna copia de `docs/trazabilidad/` cambió frente a la base | — |
 
 El paso de pruebas de la aplicación (`pnpm test`) termina en verde sin correr ninguna: las reglas de negocio empiezan en el tramo 2.

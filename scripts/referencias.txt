@@ -15,8 +15,11 @@ docs/trazabilidad/03-PRD/PRD-MVP-Controlador-de-Tiempo-20261119-v8.md
 scripts/*.py
 scripts/*.sh
 .claude/hooks/*.py
+docs/revisiones/*-respuesta.md
 # Fuera a propósito: tests/ (sus datos de juguete citan cosas que no existen,
-# para probar que se detectan) y el código de la aplicación (todavía no cita).
+# para probar que se detectan), el código de la aplicación (todavía no cita) y
+# las corridas del revisor (docs/revisiones/*-corrida*.md): son la opinión de
+# un modelo y pueden citar mal; eso es lo que la respuesta contesta.
 
 [fuentes]
 # familia: archivos donde se define cada identificador (fila de tabla que empieza por él)
@@ -45,3 +48,4 @@ supabase/seed.sql  H-3
 # Texto entre comillas invertidas que parece ruta y no lo es.
 America/Panama  # zona horaria
 feature/entrega-1-JC  # rama de la entrega
+docs/trazabilidad-d91  # rama del PR de trazabilidad

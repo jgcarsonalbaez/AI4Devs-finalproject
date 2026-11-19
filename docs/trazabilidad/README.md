@@ -12,7 +12,7 @@ como fueron escritas.
 
 | Paso | Carpeta | Última versión | Qué produce |
 |---|---|---|---|
-| 1 · Discovery | `01-Discovery/` | `01-Discovery/discovery-controlador-tiempo.md` | Las preguntas del método, el registro de decisiones (D-1 a D-91) y los puntos abiertos (PA-1 a PA-9) |
+| 1 · Discovery | `01-Discovery/` | `01-Discovery/discovery-controlador-tiempo.md` | Las preguntas del método, el registro de decisiones (D-1 a D-99) y los puntos abiertos (PA-1 a PA-9) |
 | 2 · Alcance | `02-Alcance/` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | La primera propuesta de MVP (septiembre de 2026) |
 | 3 · PRD | `03-PRD/` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261119-v8.md` | El documento de producto: requisitos (RF, RNF), restricciones (R) y riesgos aceptados (RA) |
 | 4 · Backlog | `04-Backlog/` | `04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md` | Historias con criterios de aceptación |
@@ -20,7 +20,7 @@ como fueron escritas.
 | 6 · Especificación | `06-Spec-viva/` | La especificación vive en `openspec/specs/`; aquí están sus siete rondas de revisión y la prueba de HU-01.6 | Las rondas que la refutaron antes de aprobarla (D-89) |
 | 7 · Repositorio | `07-Repositorio/` | El harness vive en `.claude/`, `scripts/` y `tests/`; aquí están sus revisiones | Las rondas que refutaron el harness y el README v2 |
 
-**Qué manda cuando no coinciden.** El backlog v5 y los tickets v4 son anteriores a la especificación aprobada (D-89) y dicen que se revisan después de ella. Esa revisión son los tickets v5, previstos para el colchón (06 a 08/12/2026). Mientras tanto, **mandan la especificación y el PRD v8**. Dos diferencias conocidas: el enlace de contraseña dura 24 horas y no 72 (D-70), y el punto PA-B10 quedó resuelto con la prueba de HU-01.6 (D-69 a D-72, D-76 y D-77).
+**Qué manda cuando no coinciden.** El backlog v5 y los tickets v4 son anteriores a la especificación aprobada (D-89) y dicen que se revisan después de ella. Esa revisión son los tickets v5, que se escriben con el PRD v9 antes del tramo 8 (miércoles 02/12/2026, D-99). Mientras tanto, **mandan la especificación y el PRD v8, y sobre ellos las decisiones posteriores al PRD v8** (D-90 en adelante): D-92 y D-98 sobre RNF-8 (el nombre del autor) y D-94 y D-96 sobre RNF-4 (lo del día anterior tras una caída). Dos diferencias conocidas: el enlace de contraseña dura 24 horas y no 72 (D-70), y el punto PA-B10 quedó resuelto con la prueba de HU-01.6 (D-69 a D-72, D-76 y D-77).
 
 **Por qué están todas las versiones y no solo la última.** Cada revisión se hizo sobre una
 versión concreta y la cita por su número. Sin esa versión, la revisión no se puede comprobar.
@@ -34,22 +34,29 @@ se cerró cada hallazgo: se corrige, se acepta como riesgo o se descarta, con su
 
 `python3 scripts/verificar-referencias.py`, que corre también en la integración continua, falla
 si:
-- un archivo de esta carpeta no está en la tabla de abajo, o la tabla cita uno que no existe;
+- un archivo de esta carpeta no está en la tabla de abajo, está dos veces, o la tabla cita uno que
+  no existe;
+- un archivo de esta carpeta es un enlace simbólico;
 - la huella de un archivo no coincide con la de la tabla;
-- el origen declarado no es coherente: una copia idéntica o neutralizada tiene que venir del mismo
-  paso y con el mismo nombre. El origen en sí vive en un espacio de trabajo privado y no se puede
-  comprobar desde aquí;
+- el estado no es `idéntica`, `neutralizada` ni `derivada`, o el origen no es coherente: una copia
+  idéntica o neutralizada tiene que venir del mismo paso y con el mismo nombre, y una derivada, del
+  mismo paso. El origen en sí vive en un espacio de trabajo privado y no se puede comprobar desde
+  aquí;
 - en la integración continua, que lo corre con `--base`: una copia que ya estaba en la rama base
-  cambió o desapareció. Las versiones nuevas se agregan, no se reescriben. Sin `--base`, cambiar a
-  la vez un archivo y su huella pasaría;
-- un documento vivo (los que lista `scripts/referencias.txt`) cita una ruta, un enlace, una
-  decisión, un requisito, un criterio o un ticket que no existe.
+  cambió, cambió de tipo o desapareció. Las versiones nuevas se agregan, no se reescriben. Sin
+  `--base`, cambiar a la vez un archivo y su huella pasaría. Se exceptúa lo que el índice de la
+  base declara `derivada` (el registro de decisiones), que se pone al día con cada decisión; se lee
+  el índice de la base para que una copia no se libre cambiando su estado. La comparación es con la
+  base, no commit por commit: por eso los pull requests se unen con *squash* (D-97);
+- un documento vivo (los que lista `scripts/referencias.txt`) cita una ruta, un enlace (en línea,
+  entre ángulos o por referencia), una decisión, un requisito, un criterio o un ticket que no
+  existe. En «HU-03.CA-1 a CA-3» o «D-1 a D-9» se comprueba cada número del intervalo.
 
 **Huella:** los 12 primeros caracteres del SHA-256 del archivo tal como está en el repositorio.
 
 ## Qué cambió frente al original
 
-De los 77 archivos, 49 son copia exacta de su origen, 27 están neutralizados y 1 es derivado. La
+De los 77 archivos, 48 son copia exacta de su origen, 28 están neutralizados y 1 es derivado. La
 columna «Estado» de la tabla dice cuál es cuál.
 
 - **`01-Discovery/discovery-controlador-tiempo.md`:** se derivó sin nombres de un documento de
@@ -64,7 +71,9 @@ columna «Estado» de la tabla dice cuál es cuál.
 - **Rutas locales (D-95):** las revisiones registran en su cabecera la ruta de cada archivo revisado.
   En 27 copias, entre ellas las cuatro anteriores, la ruta de la máquina se cambió por
   `<espacio-de-trabajo>` (la carpeta del proyecto) o `<repositorio>` (el clon). El resto del texto no
-  cambia, y la huella de la cabecera es la del archivo revisado entonces.
+  cambia, y la huella de la cabecera es la del archivo revisado entonces. Una copia más, la respuesta
+  a la ronda 1 del harness, traía en el cuerpo la ruta de la carpeta de respaldos: se cambió por
+  `<carpeta-de-respaldos>`.
 
 **Lo que no se sube:** el mapa del terreno (paso 0, copias de modelos reales de las empresas) y el
 seguimiento diario de trabajo. El avance del día se ve en los commits y en los pull requests.
@@ -73,7 +82,7 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 
 | Archivo en el repositorio | Origen en el espacio de trabajo | Huella | Estado |
 |---|---|---|---|
-| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `d38aca7eb049` | derivada sin nombres |
+| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `0f0a4ffc356a` | derivada sin nombres |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `498bb231d176` | idéntica |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `a44ff4d5acbc` | idéntica |
 | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `587c5e0e4ceb` | idéntica |
@@ -141,7 +150,7 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `7d0611803b29` | **neutralizada** |
 | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `1d0fbfe8dae7` | **neutralizada** |
 | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `fd70dd756cbd` | **neutralizada** |
-| `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `af3a2f69ad1a` | idéntica |
+| `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `46cf065739d2` | **neutralizada** |
 | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda2.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda2.md` | `1f7861e110b6` | idéntica |
 | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda3.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda3.md` | `b5555d0db510` | idéntica |
 | `07-Repositorio/Respuesta-Revision-Thibaut-README-v2-20261118-ronda1.md` | `07-Repositorio/Respuesta-Revision-Thibaut-README-v2-20261118-ronda1.md` | `33ddf273bac0` | idéntica |

@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historia completa: la comprobación de inmutabilidad compara con la base.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           # En local se probaron con 3.9, que el ejecutor ya no ofrece.
@@ -23,6 +26,25 @@ jobs:
         run: python3 tests/harness/prueba-datos-que-no-salen.py
       - name: El instalador instala lo que debe
         run: python3 tests/harness/prueba-instalar-guardarrailes.py
+      - name: El verificador de referencias detecta lo que debe (D-91)
+        run: python3 tests/harness/prueba-verificar-referencias.py
+      - name: Toda referencia del repositorio resuelve y ninguna copia cambió (D-91)
+        env:
+          EVENTO: ${{ github.event_name }}
+          RAMA_BASE: ${{ github.base_ref }}
+          ANTES: ${{ github.event.before }}
+        run: |
+          # En un pull request se compara con su rama base; en un push, con lo
+          # que había antes. Una rama nueva no tiene «antes»: se avisa y se
+          # verifica sin la comprobación de inmutabilidad.
+          if [ "$EVENTO" = "pull_request" ]; then
+            python3 scripts/verificar-referencias.py --base "origin/$RAMA_BASE"
+          elif [ -n "$ANTES" ] && [ "$ANTES" != "0000000000000000000000000000000000000000" ]; then
+            python3 scripts/verificar-referencias.py --base "$ANTES"
+          else
+            echo "Rama nueva: sin referencia anterior para comprobar la inmutabilidad."
+            python3 scripts/verificar-referencias.py
+          fi
 
   aplicacion:
     name: Aplicación (estilo, tipos, pruebas y compilación)

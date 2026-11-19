@@ -1,6 +1,6 @@
 # CLAUDE.md — reglas de proceso del Controlador de Tiempo
 
-Este fichero se carga al abrir el repositorio con Claude Code. Dice **cómo se trabaja aquí**. Qué se construye está en `readme.md` y en `docs/prd/`; no se repite.
+Este fichero se carga al abrir el repositorio con Claude Code. Dice **cómo se trabaja aquí**. Qué se construye está en `readme.md`, en la especificación (`openspec/specs/`) y en el PRD vigente (`docs/trazabilidad/03-PRD/PRD-MVP-Controlador-de-Tiempo-20261119-v8.md`); no se repite. De dónde sale cada cosa —decisiones, backlog, tickets y revisiones— está en `docs/trazabilidad/`.
 
 El repositorio es **público**. Todo lo que entra en un commit lo puede leer cualquiera.
 
@@ -12,7 +12,7 @@ Nunca inventar un dato, una regla de negocio ni el resultado de un comando. Si f
 
 ## 2. Datos que no salen
 
-- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto.
+- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto. Única excepción: el nombre del autor en la ficha 0.1 del README, que la plantilla del curso pide.
 - Los correos de ejemplo usan `example.com` (valen también `example.org` y `example.net`). Ningún otro dominio.
 - Ningún secreto entra al repositorio. Las variables viven en `.env.local`, que git ignora; `.env.example` lleva solo los nombres, sin valores (`NOMBRE=`).
 - Lo anterior vale igual para el **nombre y la ruta** de un fichero y para el **mensaje del commit**, no solo para el contenido.
@@ -48,13 +48,22 @@ El mensaje de éxito o de error lo redactamos nosotros: si el motor rechaza una 
 - Antes del commit: `git branch --show-current`.
 - Los ficheros se preparan por nombre (`git add <ficheros>`), nunca con `git add .` ni `git commit -a`.
 - Preparar y hacer el commit van en **dos comandos separados**: el hook necesita ver lo preparado antes de que entre. En el segundo, `git commit` es la primera orden y va escrito directo, sin rutas, variables (`$MSG`) ni `$(...)`; un mensaje de varias líneas se pasa con `git commit -F - <<'EOF'`.
-- **No se hace `git push` sin aprobación expresa de la Dirección.** El push al fork actualiza el pull request de la entrega.
-- Ningún pull request se abre sin su revisión adversarial, hecha con un modelo distinto al que escribió el código. Se guarda en `docs/revisiones/PR-n.md`, y cada observación se cierra de una de tres formas, con su razón: se corrige, se acepta como riesgo o se descarta.
+- **No se hace `git push` sin aprobación expresa de la Dirección.** El push de `feature/entrega-1-JC` al fork actualiza el pull request de la entrega.
+- **Un pull request por tramo (D-90).** Cada tramo del recorte se construye en su propia rama, que sale de `feature/entrega-1-JC` y vuelve a ella por un pull request dentro del fork. Abrir el pull request es un mensaje a GitHub: pide el OK de la Dirección, que además lo aprueba y lo une. El orden de los tramos no cambia.
+- Ningún pull request se abre sin su revisión adversarial, hecha con un modelo distinto al que escribió el código. Se guarda en `docs/revisiones/<rama>-ronda<N>.md`, con su respuesta en `docs/revisiones/<rama>-ronda<N>-respuesta.md`, y cada observación se cierra de una de tres formas, con su razón: se corrige, se acepta como riesgo o se descarta.
 - Una tarea termina cuando la CI está en verde en el fork, no cuando el fichero quedó escrito.
 
 ## 7. Documentación al día
 
-El cambio que altera una ruta, una tabla o una regla actualiza en el mismo pull request la spec y el README de la capability. Los prompts que produjeron cada pieza se anotan en `prompts.md`, con los ajustes humanos.
+El cambio que altera una ruta, una tabla o una regla actualiza en el mismo pull request la spec y el README de la capability. Los prompts que produjeron cada pieza se anotan en `prompts.md`, con los ajustes humanos. **Al cerrar cada tramo, su pull request pone al día `readme.md` y `prompts.md`** (D-91): un documento desactualizado confunde más que uno incompleto.
+
+**Integridad referencial (D-91).** Todo lo que se sube cita su origen —decisión, requisito, criterio, ticket o archivo— y esa cita tiene que existir en este repositorio. El verificador comprueba las citas de los documentos vivos que lista `scripts/referencias.txt`; que cada afirmación tenga su cita lo revisan la Dirección y el revisor adversarial. Antes de cada commit:
+
+```bash
+python3 scripts/verificar-referencias.py
+```
+
+Si una ruta todavía no existe porque la crea un ticket futuro, se declara en la sección `[previstas]` de `scripts/referencias.txt`, con ese ticket. Las copias de `docs/trazabilidad/` no se editan: si su origen cambia, se sube la versión nueva y se agrega su fila al índice. En la integración continua el verificador corre con `--base` y falla si una copia ya subida cambió o desapareció.
 
 ## 8. Máquina nueva
 
@@ -77,4 +86,8 @@ python3 tests/harness/prueba-datos-que-no-salen.py
 
 ```bash
 python3 tests/harness/prueba-instalar-guardarrailes.py
+```
+
+```bash
+python3 tests/harness/prueba-verificar-referencias.py
 ```

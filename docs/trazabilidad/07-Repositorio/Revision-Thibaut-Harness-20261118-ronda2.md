@@ -3,14 +3,14 @@
 - Fecha: 2026-11-18 01:29 EST
 - Perfil: `openai` · protocolo `openai-responses`
 - Modelo pedido: `gpt-5.6-sol` · modelo que respondió: `gpt-5.6-sol`
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/.claude/hooks/datos-que-no-salen.py` · huella `6aced5053b80` · 32642 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/.claude/settings.json` · huella `b648efbebfed` · 269 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/scripts/instalar-guardarrailes.sh` · huella `3dd9ff8b2eb3` · 6473 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/tests/harness/prueba-datos-que-no-salen.py` · huella `9b73c7cac5cc` · 23635 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/tests/harness/prueba-instalar-guardarrailes.py` · huella `6a9a9a07dc1a` · 10656 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/CLAUDE.md` · huella `c5d2b6759975` · 5854 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/.gitignore` · huella `7ee8b45abfd2` · 359 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/openspec/plantillas/migracion-controlada.sql` · huella `f4d3c9de925c` · 7915 caracteres
+- Archivo: `<repositorio>/.claude/hooks/datos-que-no-salen.py` · huella `6aced5053b80` · 32642 caracteres
+- Archivo: `<repositorio>/.claude/settings.json` · huella `b648efbebfed` · 269 caracteres
+- Archivo: `<repositorio>/scripts/instalar-guardarrailes.sh` · huella `3dd9ff8b2eb3` · 6473 caracteres
+- Archivo: `<repositorio>/tests/harness/prueba-datos-que-no-salen.py` · huella `9b73c7cac5cc` · 23635 caracteres
+- Archivo: `<repositorio>/tests/harness/prueba-instalar-guardarrailes.py` · huella `6a9a9a07dc1a` · 10656 caracteres
+- Archivo: `<repositorio>/CLAUDE.md` · huella `c5d2b6759975` · 5854 caracteres
+- Archivo: `<repositorio>/.gitignore` · huella `7ee8b45abfd2` · 359 caracteres
+- Archivo: `<repositorio>/openspec/plantillas/migracion-controlada.sql` · huella `f4d3c9de925c` · 7915 caracteres
 - Naturaleza: opinión de un modelo, no veredicto. No bloquea nada.
 
 ---

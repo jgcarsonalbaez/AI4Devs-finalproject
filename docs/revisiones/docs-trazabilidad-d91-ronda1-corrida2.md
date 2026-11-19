@@ -3,7 +3,7 @@
 - Fecha: 2026-11-19 13:38 EST
 - Perfil: `openai` · protocolo `openai-responses`
 - Modelo pedido: `gpt-5.6-sol` · modelo que respondió: `gpt-5.6-sol`
-- Archivo: `/private/tmp/claude-501/-Users-JaimeGuillermo-1--claude-spares-spare-21UEeR/117c90d1-5e21-421e-9ae4-a4514e4f804a/scratchpad/encargo-PR-trazabilidad.md` · huella `995ad7e9f412` · 1759 caracteres
+- Archivo: `<espacio-temporal>/encargo-PR-trazabilidad.md` · huella `995ad7e9f412` · 1759 caracteres
 - Archivo: `readme.md` · huella `e22a59e2b421` · 44200 caracteres
 - Archivo: `prompts.md` · huella `71cc0d9543e2` · 20018 caracteres
 - Archivo: `CLAUDE.md` · huella `72569bf9ba33` · 7897 caracteres

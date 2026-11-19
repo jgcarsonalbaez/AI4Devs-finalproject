@@ -49,7 +49,8 @@ si:
 
 ## Qué cambió frente al original
 
-Todos los archivos son copia exacta de su origen, salvo cinco.
+De los 77 archivos, 49 son copia exacta de su origen, 27 están neutralizados y 1 es derivado. La
+columna «Estado» de la tabla dice cuál es cuál.
 
 - **`01-Discovery/discovery-controlador-tiempo.md`:** se derivó sin nombres de un documento de
   trabajo privado. Se sustituyeron empresas, personas, nombres de contratos y rutas internas; las
@@ -60,6 +61,10 @@ Todos los archivos son copia exacta de su origen, salvo cinco.
   su forma, sin el valor, por ejemplo `sk-<30 caracteres>` o `persona@<dominio-real>`. Fueron 10
   cadenas: 3 en la ronda 1, 2 en la ronda 2, 4 en la corrida 1 de la ronda 3 y 1 en la corrida 2. Los
   10 bloqueos quedaron anotados en `docs/seguridad/registro-de-bloqueos.md`.
+- **Rutas locales (D-95):** las revisiones registran en su cabecera la ruta de cada archivo revisado.
+  En 27 copias, entre ellas las cuatro anteriores, la ruta de la máquina se cambió por
+  `<espacio-de-trabajo>` (la carpeta del proyecto) o `<repositorio>` (el clon). El resto del texto no
+  cambia, y la huella de la cabecera es la del archivo revisado entonces.
 
 **Lo que no se sube:** el mapa del terreno (paso 0, copias de modelos reales de las empresas) y el
 seguimiento diario de trabajo. El avance del día se ve en los commits y en los pull requests.
@@ -68,7 +73,7 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 
 | Archivo en el repositorio | Origen en el espacio de trabajo | Huella | Estado |
 |---|---|---|---|
-| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `a7e4ca1c0351` | derivada sin nombres |
+| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `d38aca7eb049` | derivada sin nombres |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `498bb231d176` | idéntica |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `a44ff4d5acbc` | idéntica |
 | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `587c5e0e4ceb` | idéntica |
@@ -81,9 +86,9 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261119-v8.md` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261119-v8.md` | `660bdceba523` | idéntica |
 | `03-PRD/Respuesta-Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `03-PRD/Respuesta-Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `a002f7b26938` | idéntica |
 | `03-PRD/Respuesta-Revision-Thibaut-PRD-v2-20261117-ronda2.md` | `03-PRD/Respuesta-Revision-Thibaut-PRD-v2-20261117-ronda2.md` | `e78b52c0ec35` | idéntica |
-| `03-PRD/Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `03-PRD/Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `f58bcbc60d57` | idéntica |
-| `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida1.md` | `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida1.md` | `67f7f1f98d6c` | idéntica |
-| `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida2.md` | `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida2.md` | `37e3e852f268` | idéntica |
+| `03-PRD/Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `03-PRD/Revision-Thibaut-PRD-v1-20261116-ronda1.md` | `d818904c7e6f` | **neutralizada** |
+| `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida1.md` | `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida1.md` | `c9f3faee7931` | **neutralizada** |
+| `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida2.md` | `03-PRD/Revision-Thibaut-PRD-v2-20261116-ronda2-corrida2.md` | `26db2fa43985` | **neutralizada** |
 | `03-PRD/verificar-prd.py` | `03-PRD/verificar-prd.py` | `0f1536ac8464` | idéntica |
 | `04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v1.md` | `04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v1.md` | `4a2f5fe0b984` | idéntica |
 | `04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v2.md` | `04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v2.md` | `117de4f1990c` | idéntica |
@@ -93,9 +98,9 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `929a8ac8f52b` | idéntica |
 | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `1f35e7fc579a` | idéntica |
 | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `04-Backlog/Respuesta-Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `4e151d605195` | idéntica |
-| `04-Backlog/Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `04-Backlog/Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `9b64726b7b4e` | idéntica |
-| `04-Backlog/Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `04-Backlog/Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `0c5ee5d76a79` | idéntica |
-| `04-Backlog/Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `04-Backlog/Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `1ca4dd63f86d` | idéntica |
+| `04-Backlog/Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `04-Backlog/Revision-Thibaut-Backlog-v1-20261118-ronda1.md` | `f07a199ca1b1` | **neutralizada** |
+| `04-Backlog/Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `04-Backlog/Revision-Thibaut-Backlog-v2-20261118-ronda2.md` | `f23684622562` | **neutralizada** |
+| `04-Backlog/Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `04-Backlog/Revision-Thibaut-Backlog-v4-20261118-ronda3.md` | `6d8dcf43ca19` | **neutralizada** |
 | `04-Backlog/verificar-backlog.py` | `04-Backlog/verificar-backlog.py` | `07d3a548f0fc` | idéntica |
 | `05-Tickets/Recorte-Entrega-20261118-v1.md` | `05-Tickets/Recorte-Entrega-20261118-v1.md` | `175121784f88` | idéntica |
 | `05-Tickets/Recorte-Entrega-20261118-v2.md` | `05-Tickets/Recorte-Entrega-20261118-v2.md` | `9bdfad9a5e99` | idéntica |
@@ -104,10 +109,10 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `3632bc921fd2` | idéntica |
 | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `06f28c558c04` | idéntica |
 | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v3-20261118-ronda3.md` | `05-Tickets/Respuesta-Revision-Thibaut-Tickets-v3-20261118-ronda3.md` | `ab9576f7ef06` | idéntica |
-| `05-Tickets/Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `05-Tickets/Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `f2ebec6ff62f` | idéntica |
-| `05-Tickets/Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `05-Tickets/Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `527cd84e5164` | idéntica |
-| `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida1.md` | `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida1.md` | `e6ec38a0449a` | idéntica |
-| `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida2.md` | `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida2.md` | `e61cfc3f3701` | idéntica |
+| `05-Tickets/Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `05-Tickets/Revision-Thibaut-Tickets-v1-20261118-ronda1.md` | `9a66cf78d6cb` | **neutralizada** |
+| `05-Tickets/Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `05-Tickets/Revision-Thibaut-Tickets-v2-20261118-ronda2.md` | `933b8c5d1b54` | **neutralizada** |
+| `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida1.md` | `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida1.md` | `78e095fc3116` | **neutralizada** |
+| `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida2.md` | `05-Tickets/Revision-Thibaut-Tickets-v3-20261118-ronda3-corrida2.md` | `e5289b4db93d` | **neutralizada** |
 | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v1.md` | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v1.md` | `eb3c2b5aea01` | idéntica |
 | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v2.md` | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v2.md` | `c3ea741ccee7` | idéntica |
 | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v3.md` | `05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v3.md` | `08e6525abaf7` | idéntica |
@@ -124,24 +129,24 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda5.md` | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda5.md` | `bcb27d5003b5` | idéntica |
 | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda6.md` | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda6.md` | `2016d193afa8` | idéntica |
 | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda7.md` | `06-Spec-viva/Respuesta-Revision-Thibaut-Spec-inicial-20261119-ronda7.md` | `26c052934532` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda1.md` | `573da31f7bd1` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda2.md` | `bd73355fe2dc` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida1.md` | `c4920fd0e3fb` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida2.md` | `7af38c633074` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida1.md` | `f4ae1b2e2f3e` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida2.md` | `85f846e4cd10` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida1.md` | `874cb1d5ca67` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida2.md` | `35a3e15c0eba` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida1.md` | `c31e4c557ce4` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `014d15f1d0e8` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `1960ae0b895a` | idéntica |
-| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `2d07dbfc9074` | idéntica |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda1.md` | `07e5f8b89c1d` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261118-ronda2.md` | `7103ef7b70a1` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida1.md` | `de16a067d242` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda3-corrida2.md` | `84f989e081cf` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida1.md` | `d13bc486f6f0` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda4-corrida2.md` | `e6107abc6b04` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida1.md` | `8c470415d1a8` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda5-corrida2.md` | `727de78691eb` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida1.md` | `22e29e72ce41` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda6-corrida2.md` | `7d0611803b29` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida1.md` | `1d0fbfe8dae7` | **neutralizada** |
+| `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `06-Spec-viva/Revision-Thibaut-Spec-inicial-20261119-ronda7-corrida2.md` | `fd70dd756cbd` | **neutralizada** |
 | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda1.md` | `af3a2f69ad1a` | idéntica |
 | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda2.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda2.md` | `1f7861e110b6` | idéntica |
 | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda3.md` | `07-Repositorio/Respuesta-Revision-Thibaut-Harness-20261118-ronda3.md` | `b5555d0db510` | idéntica |
 | `07-Repositorio/Respuesta-Revision-Thibaut-README-v2-20261118-ronda1.md` | `07-Repositorio/Respuesta-Revision-Thibaut-README-v2-20261118-ronda1.md` | `33ddf273bac0` | idéntica |
-| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda1.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda1.md` | `90695169ea5b` | **neutralizada** |
-| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda2.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda2.md` | `2d16d4d4f05b` | **neutralizada** |
-| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida1.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida1.md` | `32236b85beb4` | **neutralizada** |
-| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida2.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida2.md` | `7472c2125a06` | **neutralizada** |
-| `07-Repositorio/Revision-Thibaut-README-v2-20261118-ronda1.md` | `07-Repositorio/Revision-Thibaut-README-v2-20261118-ronda1.md` | `cd5bb7a1b8d8` | idéntica |
+| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda1.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda1.md` | `8242fdb6dd8e` | **neutralizada** |
+| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda2.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda2.md` | `1b748fafe367` | **neutralizada** |
+| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida1.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida1.md` | `5f3c56ad6220` | **neutralizada** |
+| `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida2.md` | `07-Repositorio/Revision-Thibaut-Harness-20261118-ronda3-corrida2.md` | `30fd23bf6d24` | **neutralizada** |
+| `07-Repositorio/Revision-Thibaut-README-v2-20261118-ronda1.md` | `07-Repositorio/Revision-Thibaut-README-v2-20261118-ronda1.md` | `c4f249c37a65` | **neutralizada** |

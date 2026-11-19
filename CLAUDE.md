@@ -12,7 +12,7 @@ Nunca inventar un dato, una regla de negocio ni el resultado de un comando. Si f
 
 ## 2. Datos que no salen
 
-- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto. Única excepción: el nombre del autor en la ficha 0.1 del README, que la plantilla del curso pide.
+- Los clientes se nombran con su alias estable (`Cliente A` … `Cliente I`) y las dos empresas como `Proveedor A` y `Proveedor B`. No se escriben nombres reales de empresas, personas, contratos ni códigos de proyecto. Única excepción: el nombre del autor en la ficha 0.1 del README, que la plantilla del curso pide (D-92).
 - Los correos de ejemplo usan `example.com` (valen también `example.org` y `example.net`). Ningún otro dominio.
 - Ningún secreto entra al repositorio. Las variables viven en `.env.local`, que git ignora; `.env.example` lleva solo los nombres, sin valores (`NOMBRE=`).
 - Lo anterior vale igual para el **nombre y la ruta** de un fichero y para el **mensaje del commit**, no solo para el contenido.

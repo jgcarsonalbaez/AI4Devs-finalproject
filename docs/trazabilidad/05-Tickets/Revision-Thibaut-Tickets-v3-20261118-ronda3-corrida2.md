@@ -3,8 +3,8 @@
 - Fecha: 2026-11-18 14:25 EST
 - Perfil: `openai` · protocolo `openai-responses`
 - Modelo pedido: `gpt-5.6-sol` · modelo que respondió: `gpt-5.6-sol`
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v3.md` · huella `08e6525abaf7` · 35593 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md` · huella `84e92c472ace` · 38894 caracteres
+- Archivo: `<espacio-de-trabajo>/05-Tickets/Tickets-MVP-Controlador-de-Tiempo-20261118-v3.md` · huella `08e6525abaf7` · 35593 caracteres
+- Archivo: `<espacio-de-trabajo>/04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md` · huella `84e92c472ace` · 38894 caracteres
 - Naturaleza: opinión de un modelo, no veredicto. No bloquea nada.
 
 ---

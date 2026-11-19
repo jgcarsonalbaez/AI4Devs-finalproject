@@ -3,8 +3,8 @@
 - Fecha: 2026-11-18 00:06 EST
 - Perfil: `openai` · protocolo `openai-responses`
 - Modelo pedido: `gpt-5.6-sol` · modelo que respondió: `gpt-5.6-sol`
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/readme.md` · huella `82e379a42ac1` · 59696 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/03-PRD/PRD-MVP-Controlador-de-Tiempo-20261117-v3.md` · huella `7be0c259bb6c` · 23972 caracteres
+- Archivo: `<repositorio>/readme.md` · huella `82e379a42ac1` · 59696 caracteres
+- Archivo: `<espacio-de-trabajo>/03-PRD/PRD-MVP-Controlador-de-Tiempo-20261117-v3.md` · huella `7be0c259bb6c` · 23972 caracteres
 - Naturaleza: opinión de un modelo, no veredicto. No bloquea nada.
 
 ---

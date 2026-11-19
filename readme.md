@@ -15,7 +15,7 @@
 > - **Lo que se construye para la entrega:** un recorte del MVP con 23 tickets en 11 tramos (`docs/trazabilidad/05-Tickets/Recorte-Entrega-20261119-v4.md`, decisiones D-73 a D-75). Una persona entra con su cuenta, el consultor avisa su inicio con un toque y, al vencer el margen, cada supervisor recibe un correo con los suyos que no avisaron. Todo queda separado por organización y por rol, y desplegado. Meta interna: sábado 05/12/2026 (D-75). Entrega: miércoles 09/12/2026 (R-1).
 > - **Cómo se trabaja:** cada tramo se construye en su propia rama y vuelve por un pull request dentro del fork, con su revisión adversarial guardada (D-90).
 > - **De dónde sale cada cosa:** `docs/trazabilidad/README.md` reúne el registro de decisiones (D-1 a D-91), el PRD, el backlog, los tickets y todas las revisiones. **Si este README y la especificación difieren, manda la especificación.**
-> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en la ficha 0.1, porque la plantilla del curso lo pide.
+> - **Anonimización.** El proyecto es una herramienta interna real de dos empresas de consultoría. Los clientes aparecen como `Cliente A` … `Cliente I`, con alias estables, y las empresas como Proveedor A y Proveedor B. No se nombran personas, contratos ni códigos de proyecto reales (R-5, RNF-8). La única excepción es el autor del proyecto, en la ficha 0.1, porque la plantilla del curso lo pide (D-92).
 
 ---
 

@@ -3,12 +3,12 @@
 - Fecha: 2026-11-19 09:18 EST
 - Perfil: `openai` · protocolo `openai-responses`
 - Modelo pedido: `gpt-5.6-sol` · modelo que respondió: `gpt-5.6-sol`
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/openspec/specs/acceso/spec.md` · huella `debb22188f46` · 21533 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/openspec/specs/aviso-inicio/spec.md` · huella `b6d24c256683` · 15204 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Cursos/AI4Devs-finalproject/openspec/specs/no-reportados/spec.md` · huella `c4d5ffd7f824` · 21355 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/05-Tickets/Recorte-Entrega-20261118-v3.md` · huella `1a21d65ea034` · 7395 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/06-Spec-viva/HU-01.6-prueba-local-20261118-v1.md` · huella `300e2df41965` · 4913 caracteres
-- Archivo: `/Users/JaimeGuillermo_1/Library/Mobile Documents/com~apple~CloudDocs/Documents/RespaldoCarson/Capacitaciones/L1DR/MasterAI/ProyectoFinal/04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md` · huella `84e92c472ace` · 38894 caracteres
+- Archivo: `<repositorio>/openspec/specs/acceso/spec.md` · huella `debb22188f46` · 21533 caracteres
+- Archivo: `<repositorio>/openspec/specs/aviso-inicio/spec.md` · huella `b6d24c256683` · 15204 caracteres
+- Archivo: `<repositorio>/openspec/specs/no-reportados/spec.md` · huella `c4d5ffd7f824` · 21355 caracteres
+- Archivo: `<espacio-de-trabajo>/05-Tickets/Recorte-Entrega-20261118-v3.md` · huella `1a21d65ea034` · 7395 caracteres
+- Archivo: `<espacio-de-trabajo>/06-Spec-viva/HU-01.6-prueba-local-20261118-v1.md` · huella `300e2df41965` · 4913 caracteres
+- Archivo: `<espacio-de-trabajo>/04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md` · huella `84e92c472ace` · 38894 caracteres
 - Naturaleza: opinión de un modelo, no veredicto. No bloquea nada.
 
 ---

@@ -50,5 +50,6 @@ supabase/seed.sql  H-3
 # Texto entre comillas invertidas que parece ruta y no lo es.
 America/Panama  # zona horaria
 feature/entrega-1-JC  # rama de la entrega
+origin/feature/entrega-1-JC  # la misma, en el remoto
 docs/trazabilidad-d91  # rama del PR de trazabilidad
 refs/pull/1/head  # referencia de git del PR en GitHub

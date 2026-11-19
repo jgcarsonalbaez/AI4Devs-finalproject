@@ -43,8 +43,10 @@ si:
   idéntica o neutralizada tiene que venir del mismo paso y con el mismo nombre, y una derivada, del
   mismo paso. El origen en sí vive en un espacio de trabajo privado y no se puede comprobar desde
   aquí;
-- en la integración continua, que lo corre con `--base`: una copia que ya estaba en la rama base
-  cambió, cambió de tipo o desapareció. Las versiones nuevas se agregan, no se reescriben. Sin
+- en la integración continua, que lo corre siempre con `--base` contra lo ya unido (la rama base en
+  un pull request, el punto de salida en una rama de tramo, el estado anterior en la rama de la
+  entrega; si no sabe contra qué, falla): una copia que ya estaba ahí cambió, cambió de tipo o
+  desapareció. Las versiones nuevas se agregan, no se reescriben. Sin
   `--base`, cambiar a la vez un archivo y su huella pasaría. Se exceptúa lo que el índice de la
   base declara `derivada sin nombres` (el registro de decisiones), que se pone al día con cada
   decisión; aun así, cada decisión que ya estaba sigue igual, o igual con una nota al final o

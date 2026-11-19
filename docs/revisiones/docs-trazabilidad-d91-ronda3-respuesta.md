@@ -60,3 +60,27 @@ trabaja de buena fe**: una cita que quedó vieja, una copia que se editó, una d
 sin darse cuenta. No protege contra quien sube cambios con mala fe: esa persona podría editar el propio
 verificador en el mismo pull request, y eso lo detiene la revisión de la Dirección antes de unir, no
 la integración continua. Con esa frontera declarada, se propone cerrar la refutación con esta ronda.
+
+**Cerrada por la Dirección el 19/11** con esta ronda.
+
+## Después del cierre: la integración continua del push dio rojo
+
+Al subir `b062c63` y `10fc919`, la corrida del pull request pasó y **la del push falló**: comparaba
+con lo que había antes del push (`5d89d4d`), y la copia neutralizada en la ronda 2 (A3) ya estaba
+subida ahí. El defecto era del agente: el verificador lo había mostrado en local contra `5d89d4d`, se
+leyó como «estado intermedio de una rama sin unir» y no se cruzó con el workflow, que en los push no
+comparaba con la rama base, como dicen el verificador, el índice y `CLAUDE.md` §6.
+
+**Corrección:** en un push a una rama de tramo, el workflow compara con `origin/feature/entrega-1-JC`,
+de la que sale (D-90); en un push a la rama de la entrega, sigue comparando con lo que había antes; en
+un pull request, con su base.
+
+**Revisión corta del revisor** (`docs-trazabilidad-d91-ronda3-cierre-ci.md`): 4 hallazgos, los 4
+ciertos, sobre esa primera versión de la corrección:
+
+| # | Hallazgo | Cierre |
+|---|---|---|
+| 1 | Un push a la rama de la entrega sin estado anterior (creada o recreada) pasaba sin comprobar la inmutabilidad, y el comentario decía que fallaba | **Corregido:** ahora falla con su mensaje. La integración continua nunca corre el verificador sin `--base` |
+| 2 | Una etiqueta con el nombre de la rama de la entrega se tomaba por la rama | **Corregido:** el push solo dispara con ramas (`branches: ["**"]`); las etiquetas no corren la integración continua |
+| 3 | Cualquier otra rama se comparaba con la punta de la entrega: una rama rezagada daba falsos rojos | **Corregido:** se compara con el punto donde la rama salió de la entrega (`merge-base`). Sin historia común, falla con su mensaje |
+| 4 | La selección de la base no tiene prueba automática | **Declarado:** se probó en local el paso del workflow en cinco casos (rama de tramo pasa; pull request pasa; push a la entrega con una copia cambiada falla; push a la entrega sin estado anterior falla; rama sin historia común falla). Automatizarlo pide sacar la lógica del workflow a un guion con su prueba; queda para cuando el workflow vuelva a cambiar |

@@ -29,12 +29,16 @@ def contenedor() -> str:
     return f"supabase_db_{m.group(1)}"
 
 
-def psql(sql: str, *, detener_en_error: bool = True) -> subprocess.CompletedProcess:
-    """Corre `sql` en la base local como postgres. Devuelve el proceso completo.
+def psql(sql: str, *, detener_en_error: bool = True, usuario: str = "postgres") -> subprocess.CompletedProcess:
+    """Corre `sql` en la base local. Devuelve el proceso completo.
 
+    Por defecto como postgres, el rol con el que corren las migraciones. Las
+    pruebas que necesitan fabricar un estado que postgres no puede crear (por
+    ejemplo, cambiar un rol reservado) pasan usuario="supabase_admin", el
+    superusuario de la base local; nunca se usa para comprobar.
     Salida sin alineación, separada por tabuladores y sin encabezados (-At).
     """
-    orden = ["docker", "exec", "-i", contenedor(), "psql", "-U", "postgres", "-d", "postgres",
+    orden = ["docker", "exec", "-i", contenedor(), "psql", "-U", usuario, "-d", "postgres",
              "-X", "-q", "-At", "-F", "\t"]
     if detener_en_error:
         orden += ["-v", "ON_ERROR_STOP=1"]

@@ -24,9 +24,11 @@ from base_local import psql  # noqa: E402
 COMPROBACION = RAIZ / "supabase" / "comprobaciones" / "estructura.sql"
 
 # Una tabla bien hecha: organización obligatoria, reglas activadas y forzadas,
-# y su regla restrictiva por organización para todo y para todos.
+# su regla restrictiva por organización para todo y para todos, y sin el
+# TRUNCATE que la plataforma da por defecto a las personas.
 BIEN = """
 create table public.prueba_bien (id uuid primary key, organizacion_id uuid not null);
+revoke truncate, trigger, references on public.prueba_bien from anon, authenticated;
 alter table public.prueba_bien enable row level security;
 alter table public.prueba_bien force row level security;
 create policy prueba_bien_organizacion on public.prueba_bien as restrictive for all to public
@@ -96,12 +98,19 @@ CASOS = [
     ("N17 procedimiento con los privilegios de su dueño",
      "create procedure public.prueba_proc() language sql security definer as 'select 1';",
      ("public.prueba_proc()", "funcion-con-privilegios-del-dueno-fuera-de-lista")),
+    # N18 y N19: solo el superusuario de la base local puede fabricar ese estado.
     ("N18 el rol de las personas es dueño de una tabla",
      BIEN + "alter table public.prueba_bien owner to authenticated;",
      ("public.prueba_bien", "rol-de-personas-es-dueno")),
     ("N19 el rol de las personas puede omitir las reglas",
      "alter role authenticated bypassrls;",
      ("authenticated", "rol-de-personas-omite-reglas")),
+    ("N22 el rol de las personas puede vaciar una tabla (TRUNCATE no pasa por las reglas)",
+     "grant truncate on public.organizacion to authenticated;",
+     ("public.organizacion", "rol-de-personas-omite-reglas")),
+    ("N23 sin sesión se puede vaciar una tabla",
+     BIEN + "grant truncate on public.prueba_bien to anon;",
+     ("public.prueba_bien", "rol-de-personas-omite-reglas")),
     ("N20 la regla de organizacion ya no compara su id",
      "drop policy organizacion_separacion on public.organizacion;"
      "create policy organizacion_separacion on public.organizacion as restrictive for all to public "
@@ -113,10 +122,14 @@ CASOS = [
 ]
 
 
-def correr(preparacion: str):
+COMO_SUPERUSUARIO = {"N18", "N19"}
+
+
+def correr(nombre: str, preparacion: str):
     """Devuelve (fallas, resumen, error) de correr la comprobación tras la preparación."""
     sql = f"begin;\n{preparacion}\n{COMPROBACION.read_text(encoding='utf-8')}\nrollback;\n"
-    r = psql(sql)
+    usuario = "supabase_admin" if nombre.split()[0] in COMO_SUPERUSUARIO else "postgres"
+    r = psql(sql, usuario=usuario)
     if r.returncode != 0:
         return None, None, r.stderr.strip()
     fallas, resumen = set(), None
@@ -135,7 +148,7 @@ def main() -> int:
         return 1
     malos = 0
     for nombre, preparacion, esperado in CASOS:
-        fallas, resumen, error = correr(preparacion)
+        fallas, resumen, error = correr(nombre, preparacion)
         if error is not None:
             malos += 1
             print(f"✗ {nombre}: la base rechazó el caso.\n  {error}")

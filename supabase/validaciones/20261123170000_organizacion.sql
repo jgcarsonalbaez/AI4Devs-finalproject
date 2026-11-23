@@ -126,6 +126,18 @@ filas(orden, objeto, esperado, encontrado) as (
          coalesce((select case when anon_ejecuta then 'anon sí' else 'anon no' end || ' · '
                           || case when auth_ejecuta then 'authenticated sí' else 'authenticated no' end
                    from fn where firma = 'public.es_mi_organizacion(uuid)'), '(no existe)')
+  union all
+  -- Solo los privilegios que no pasan por las reglas: los de leer y escribir
+  -- los da HU-02.1, y esta fila no debe cambiar cuando lleguen.
+  select 20, 'TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion',
+         'anon: ninguno · authenticated: ninguno',
+         case when to_regclass('public.organizacion') is null then '(no existe)' else
+           (select string_agg(r.rol || ': ' || coalesce(
+                     (select string_agg(p.priv, ',' order by p.priv)
+                      from (values ('TRUNCATE'), ('TRIGGER'), ('REFERENCES')) p(priv)
+                      where has_table_privilege(r.rol, 'public.organizacion', p.priv)), 'ninguno'),
+                   ' · ' order by r.rol)
+            from (values ('anon'), ('authenticated')) r(rol)) end
 )
 select objeto, esperado, encontrado,
        case when esperado = encontrado then 'OK' else 'FALLA' end as estado

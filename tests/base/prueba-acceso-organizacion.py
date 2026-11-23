@@ -108,11 +108,14 @@ def main() -> int:
         caso("N2 sin pase no se puede preguntar", c in (401, 403), f"respondió {c}")
 
         # organizacion por la API: nadie la ve ni la cambia hasta el tramo 3 (D-100).
+        # Hoy la API la rechaza antes de llegar a la regla, porque las personas
+        # todavía no tienen permiso de leer (lo da HU-02.1); una respuesta vacía
+        # también vale. Lo que no vale es recibir la fila.
         filtro = f"/rest/v1/organizacion?id=eq.{org_id}&select=id"
         c, r = api("GET", filtro, pase=pase_b)
-        caso("N3 con sesión no se ve la organización", (c, r) == (200, []), f"respondió {c} {r}")
+        caso("N3 con sesión no se ve la organización", (c, r) == (200, []) or c in (401, 403), f"respondió {c}")
         c, r = api("GET", filtro)
-        caso("N4 sin sesión no se ve la organización", (c, r) == (200, []), f"respondió {c} {r}")
+        caso("N4 sin sesión no se ve la organización", (c, r) == (200, []) or c in (401, 403), f"respondió {c}")
         c, r = api("POST", "/rest/v1/organizacion", {"nombre": f"Intrusa {uuid.uuid4()}", "zona_horaria": "UTC"},
                    pase=pase_b)
         caso("N5 con sesión no se crea una organización", c in (401, 403), f"respondió {c}")
@@ -122,6 +125,35 @@ def main() -> int:
         caso("N6 con sesión no se cambia una organización", c in (200, 401, 403) and dias == "30",
              f"respondió {c}; sesion_dias quedó en {dias}")
 
+        # La regla en sí: con el permiso de leer y escribir dado dentro de una
+        # transacción que se deshace, como lo dará HU-02.1, la regla sigue sin
+        # dejar ver ni cambiar nada. Se consulta como la persona: con su rol y
+        # con su pase, que es lo que la API le pasa a la base.
+        def como_persona(rol: str, consulta: str) -> subprocess.CompletedProcess:
+            pase = json.dumps({"sub": str(uuid.uuid4()), "role": rol, "session_id": str(uuid.uuid4())})
+            return psql(f"begin;\ngrant select, insert, update, delete on public.organizacion to {rol};\n"
+                        f"set local role {rol};\nset local request.jwt.claims = '{pase}';\n"
+                        f"{consulta}\nrollback;\n")
+
+        for rol, n in (("authenticated", "N12"), ("anon", "N13")):
+            r = como_persona(rol, "select count(*) from public.organizacion;")
+            caso(f"{n} {rol}, con permiso de leer, no ve ninguna fila (hay al menos una)",
+                 r.returncode == 0 and r.stdout.strip() == "0", f"vio {r.stdout.strip() or r.stderr.strip()}")
+        r = como_persona("authenticated", "insert into public.organizacion (nombre, zona_horaria) "
+                                          f"values ('N14 {uuid.uuid4()}', 'UTC');")
+        caso("N14 authenticated, con permiso de escribir, no crea una organización",
+             r.returncode != 0 and "row-level security" in r.stderr, r.stderr.strip().splitlines()[0] if r.stderr else "se aceptó")
+        r = como_persona("authenticated", f"with c as (update public.organizacion set sesion_dias = 1 "
+                                          f"where id = '{org_id}' returning 1) select count(*) from c;")
+        caso("N15 authenticated, con permiso de escribir, no cambia una organización",
+             r.returncode == 0 and r.stdout.strip() == "0", f"cambió {r.stdout.strip() or r.stderr.strip()}")
+        r = como_persona("authenticated", f"with c as (delete from public.organizacion "
+                                          f"where id = '{org_id}' returning 1) select count(*) from c;")
+        caso("N16 authenticated, con permiso de quitar, no quita una organización",
+             r.returncode == 0 and r.stdout.strip() == "0", f"quitó {r.stdout.strip() or r.stderr.strip()}")
+        r = como_persona("authenticated", "truncate public.organizacion;")
+        caso("N17 authenticated no puede vaciar la tabla", r.returncode != 0, "se rechaza" if r.returncode else "se aceptó")
+
         # Constraints, por SQL directo, dentro de una transacción que se deshace.
         def inserta(valores: str) -> bool:
             r = psql(f"begin; insert into public.organizacion (nombre, zona_horaria, sesion_dias) "
@@ -130,14 +162,14 @@ def main() -> int:
 
         caso("P3 zona horaria de la lista estándar", inserta(f"('P3 {uuid.uuid4()}', 'America/Lima', 1)"),
              "se acepta")
-        caso("N7 zona horaria que la base no reconoce", not inserta(f"('N7 {uuid.uuid4()}', 'America/Atlantida', 30)"),
+        caso("N18 zona horaria que la base no reconoce", not inserta(f"('N18 {uuid.uuid4()}', 'America/Atlantida', 30)"),
              "se rechaza")
-        caso("N8 desplazamiento escrito como zona", not inserta(f"('N8 {uuid.uuid4()}', 'UTC+5', 30)"),
+        caso("N19 desplazamiento escrito como zona", not inserta(f"('N19 {uuid.uuid4()}', 'UTC+5', 30)"),
              "se rechaza")
-        caso("N9 sesion_dias en cero", not inserta(f"('N9 {uuid.uuid4()}', 'UTC', 0)"), "se rechaza")
-        caso("N10 nombre repetido", not inserta(f"('{nombre_org}', 'UTC', 30)"), "se rechaza")
-        caso("N11 sin zona horaria",
-             psql("begin; insert into public.organizacion (nombre) values ('N11'); rollback;").returncode != 0,
+        caso("N20 sesion_dias en cero", not inserta(f"('N20 {uuid.uuid4()}', 'UTC', 0)"), "se rechaza")
+        caso("N21 nombre repetido", not inserta(f"('{nombre_org}', 'UTC', 30)"), "se rechaza")
+        caso("N22 sin zona horaria",
+             psql("begin; insert into public.organizacion (nombre) values ('N22'); rollback;").returncode != 0,
              "se rechaza")
     finally:
         psql_ok(f"delete from public.organizacion where id = '{org_id}';")

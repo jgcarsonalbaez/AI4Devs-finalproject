@@ -56,6 +56,11 @@ CASOS = [
      "función public.es_mi_organizacion(uuid)"),
     ("N13 es_zona_horaria deja de ser inmutable",
      "alter function public.es_zona_horaria(text) stable;", "función public.es_zona_horaria(text)"),
+    ("N14 sin sesión se puede vaciar la tabla",
+     "grant truncate on public.organizacion to anon;",
+     "TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion"),
+    ("P2 el permiso de leer, que dará HU-02.1, no cambia la fila de privilegios",
+     "grant select on public.organizacion to authenticated;", None),
 ]
 
 

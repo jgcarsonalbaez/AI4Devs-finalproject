@@ -42,7 +42,6 @@ N: docs/trazabilidad/04-Backlog/Backlog-MVP-Controlador-de-Tiempo-20261118-v5.md
 
 [previstas]
 # ruta  ticket que la crea. Cuando la ruta exista, se saca de aquí.
-supabase/migrations  HU-03.1
 supabase/seed.sql  H-3
 
 [no-son-rutas]

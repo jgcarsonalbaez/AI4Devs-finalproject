@@ -9,9 +9,10 @@
 6. [Tickets de trabajo](#6-tickets-de-trabajo)
 7. [Pull requests](#7-pull-requests)
 
-> **Estado al jueves 19/11/2026.**
+> **Estado al lunes 23/11/2026.**
 >
-> - **Lo que ya está construido:** la estructura de la aplicación (Next.js, ticket H-2), la integración continua en verde en el fork, el harness (reglas de `CLAUDE.md`, hook de datos que no salen, plantilla de migración controlada, verificador de referencias) y la **especificación aprobada** (D-89): `openspec/specs/acceso/spec.md`, `openspec/specs/aviso-inicio/spec.md` y `openspec/specs/no-reportados/spec.md`, con 32 requisitos y 134 escenarios, tras siete rondas de revisión adversarial. Todavía no hay funciones de negocio: empiezan en el tramo 2.
+> - **Lo que ya está construido:** la estructura de la aplicación (Next.js, ticket H-2), la integración continua en verde en el fork, el harness (reglas de `CLAUDE.md`, hook de datos que no salen, plantilla de migración controlada, verificador de referencias) y la **especificación aprobada** (D-89): `openspec/specs/acceso/spec.md`, `openspec/specs/aviso-inicio/spec.md` y `openspec/specs/no-reportados/spec.md`, con 32 requisitos y 134 escenarios, tras siete rondas de revisión adversarial.
+> - **Tramo 2 (HU-03.1):** la primera tabla de la base, `organizacion`, con su regla de separación forzada, y la **comprobación de estructura**, que corre en cada cambio y falla si una tabla de negocio nace sin organización o sin su regla. Hasta el tramo 3 la regla no deja ver nada a nadie: todavía no existe la tabla de usuarios de la que sale la organización de quien consulta (D-100). Todavía no hay pantallas.
 > - **Lo que se construye para la entrega:** un recorte del MVP con 23 tickets en 11 tramos (`docs/trazabilidad/05-Tickets/Recorte-Entrega-20261119-v4.md`, decisiones D-73 a D-75). Una persona entra con su cuenta, el consultor avisa su inicio con un toque y, al vencer el margen, cada supervisor recibe un correo con los suyos que no avisaron. Todo queda separado por organización y por rol, y desplegado. Meta interna: sábado 05/12/2026 (D-75). Entrega: miércoles 09/12/2026 (R-1).
 > - **Cómo se trabaja:** cada tramo se construye en su propia rama y vuelve por un pull request dentro del fork, con su revisión adversarial guardada (D-90).
 > - **De dónde sale cada cosa:** `docs/trazabilidad/README.md` reúne el registro de decisiones (D-1 a D-100), el PRD, el backlog, los tickets y todas las revisiones. **Si este README y la especificación difieren, manda la especificación.**
@@ -145,7 +146,23 @@ Sin `--base`, el verificador no comprueba que las copias de `docs/trazabilidad/`
 
 Al clonar en una máquina nueva se instalan los hooks de git con `bash scripts/instalar-guardarrailes.sh`; los pasos que siguen están en `CLAUDE.md`, sección 8.
 
-**Lo que se agrega con los tramos siguientes:** la base local de Supabase, que corre en Docker, con sus migraciones en `supabase/migrations` (HU-03.1) y los datos de arranque en `supabase/seed.sql` (H-3). Las instrucciones para levantarla se escriben aquí en el pull request que las crea.
+**La base local** (desde HU-03.1). Corre en Docker, con la herramienta `supabase` (probada con la versión 2.109.1, la misma que usa la integración continua). El script levanta solo la base, el servicio de autenticación y la API, y aplica las migraciones de `supabase/migrations`:
+
+```bash
+bash scripts/base/levantar-base.sh
+```
+
+Lo que corre la integración continua sobre la base, en el mismo orden:
+
+```bash
+python3 scripts/base/correr-validaciones.py
+python3 scripts/base/comprobar-estructura.py
+python3 tests/base/prueba-comprobacion-estructura.py
+python3 tests/base/prueba-validacion-organizacion.py
+python3 tests/base/prueba-acceso-organizacion.py
+```
+
+Para volver a aplicar las migraciones desde cero, con la base ya levantada: `supabase db reset` (borra los datos de la base local, que son solo de prueba). Los datos de arranque llegan en `supabase/seed.sql` con H-3.
 
 ---
 
@@ -226,29 +243,35 @@ AI4Devs-finalproject/
 ├── readme.md · prompts.md              # documentación de la entrega
 ├── CLAUDE.md                           # reglas de proceso del repositorio
 ├── .claude/hooks/datos-que-no-salen.py # bloquea secretos, nombres y dominios reales
-├── .github/workflows/ci.yml            # guardarraíles y aplicación, en cada cambio
+├── .github/workflows/ci.yml            # guardarraíles, aplicación y base, en cada cambio
 ├── app/                                # Next.js (App Router): página provisional de H-2
 ├── openspec/
 │   ├── specs/{acceso,aviso-inicio,no-reportados}/spec.md
 │   └── plantillas/migracion-controlada.sql
+├── supabase/
+│   ├── config.toml                     # base local
+│   ├── migrations/                     # una migración por tabla, con la plantilla controlada (desde HU-03.1)
+│   ├── validaciones/                   # validación 1 a 1 de solo lectura por migración
+│   └── comprobaciones/estructura.sql   # comprobación de estructura (HU-03.1)
 ├── docs/
 │   ├── trazabilidad/                   # decisiones, PRD, backlog, tickets y revisiones (D-91)
+│   ├── revisiones/                     # revisión adversarial de cada pull request (D-90)
 │   └── seguridad/registro-de-bloqueos.md
 ├── scripts/
 │   ├── instalar-guardarrailes.sh       # instala los hooks de git
 │   ├── verificar-referencias.py        # integridad referencial (D-91)
-│   └── referencias.txt                 # su configuración
-├── tests/harness/                      # pruebas de los guardarraíles
+│   ├── referencias.txt                 # su configuración
+│   └── base/                           # levantar la base local, validar y comprobar la estructura
+├── tests/
+│   ├── harness/                        # pruebas de los guardarraíles
+│   └── base/                           # pruebas de la base, contra la base local
 └── package.json · pnpm-lock.yaml · tsconfig.json · vitest.config.ts · eslint.config.mjs
 ```
 
 **Lo que se agrega, y quién lo crea:**
 
 ```
-supabase/migrations/      # HU-03.1 en adelante: una migración por tabla, con la plantilla controlada
-supabase/validaciones/    # HU-03.1 en adelante: validación 1 a 1 de solo lectura por migración
 supabase/seed.sql         # H-3: dos organizaciones, los tres roles, un consultor con dos asignaciones
-docs/revisiones/          # revisión adversarial de cada pull request (D-90)
 app/ (pantallas)          # HU-01.3 (entrada) y HU-06.4 (consultor)
 ```
 
@@ -281,7 +304,7 @@ flowchart TB
 | **Peticiones de otro sitio** | Se rechaza toda petición que cambie datos, o que entre o cierre sesión, si no viene del propio sitio. Ninguna página se muestra dentro de un marco de otro sitio. La cookie no la lee el código de la página, va sin dominio y, desplegada, solo por conexión cifrada | `openspec/specs/acceso/spec.md` |
 | **Separación por organización, en dos capas** | En la base, regla por fila restrictiva en toda tabla de negocio, forzada también para el dueño. En el código, filtro en un solo lugar. Lo ajeno responde como inexistente | HU-03.CA-1 a CA-3, D-67 |
 | **Reglas por rol en la base** | El consultor ve lo suyo y **no ve sus no reportados**; el supervisor, lo de las asignaciones que supervisa; la dirección, su organización. Ninguna persona cambia ninguna tabla en esta entrega: el aviso lo inserta solo la operación de registro | HU-02.CA-1 a CA-8 y CA-10, D-62 |
-| **Comprobación de estructura** | Corre en la integración continua y falla si una tabla de negocio no tiene organización o regla, o si una vista o una función se salta las reglas sin estar en la lista cerrada | HU-03.1, decisión 37 de D-88 |
+| **Comprobación de estructura** | Corre en la integración continua y falla si una tabla de negocio no tiene organización o regla, si las personas pueden omitir las reglas (también con `TRUNCATE`, que la plataforma da por defecto y no pasa por ellas), o si una vista o una función se salta las reglas sin estar en la lista cerrada (`supabase/comprobaciones/estructura.sql`) | HU-03.1, decisión 37 de D-88 |
 | **Matriz de permisos** | Una fila por operación del código y una columna por situación, con un caso permitido y uno rechazado por celda. Falla si una operación no tiene fila | HU-02.4 |
 | **Aviso inalterable** | Un disparador rechaza editarlo o quitarlo, para cualquier rol | HU-06.CA-13, D-49 |
 | **No reportado inalterable** | Solo puede pasar su marca de notificado de vacía a un instante, una vez; ni el sistema lo quita | D-80 |
@@ -300,8 +323,13 @@ flowchart TB
 | `tests/harness/prueba-instalar-guardarrailes.py` | Que el instalador deja los hooks de git puestos y que funcionan | 52 |
 | `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 64 |
 | `scripts/verificar-referencias.py` | Que toda cita de los documentos vivos resuelve, y que ninguna copia de `docs/trazabilidad/` cambió frente a la base | — |
+| `scripts/base/correr-validaciones.py` | Que cada migración dejó sus objetos hechos como dice la especificación: la validación 1 a 1 de `supabase/validaciones/` | 20 filas |
+| `scripts/base/comprobar-estructura.py` | Que toda tabla de negocio tiene organización y su regla, y que nada se salta las reglas | — |
+| `tests/base/prueba-comprobacion-estructura.py` | Que la comprobación de estructura detecta cada falla: un caso que pasa y uno que falla por regla | 27 |
+| `tests/base/prueba-validacion-organizacion.py` | Que la validación de `organizacion` marca cada desvío de la especificación en su fila | 16 |
+| `tests/base/prueba-acceso-organizacion.py` | Con datos: la base sabe si la sesión del pase sigue abierta; nadie ve ni cambia una organización, por la API ni por SQL con su rol, aunque tenga el permiso; las constraints de la tabla | 20 |
 
-El paso de pruebas de la aplicación (`pnpm test`) termina en verde sin correr ninguna: las reglas de negocio empiezan en el tramo 2.
+El paso de pruebas de la aplicación (`pnpm test`) termina en verde sin correr ninguna: el código de la aplicación empieza en el tramo 3 (HU-03.2).
 
 **Cómo se escriben las de la aplicación** (D-26, `CLAUDE.md` secciones 3 y 4). En reglas de negocio y permisos, las pruebas van antes del código: el primer commit del ticket son las pruebas fallando y el segundo el código que las hace pasar. Cada pieza tiene un caso que pasa y uno que se rechaza. La IA propone los casos límite desde la especificación, la Dirección los aprueba o agrega, y el prompt queda en `prompts.md`.
 
@@ -404,7 +432,7 @@ erDiagram
 
 | Tabla | Qué es | Reglas que la base garantiza | Ticket |
 |---|---|---|---|
-| `organizacion` | Cada empresa que usa el sistema | Zona horaria propia, que da la fecha de hoy para sus parámetros (D-81). Al crearla, un disparador le crea un margen de 60 y un intervalo de 5 | HU-03.1 |
+| `organizacion` | Cada empresa que usa el sistema | Nombre único; `sesion_dias` mayor que 0, 30 por defecto; zona horaria propia, de la lista estándar, que da la fecha de hoy para sus parámetros (D-81). Al crearla, un disparador le crea un margen de 60 y un intervalo de 5 | HU-03.1 (tabla, construida) · HU-07.1 (disparador) |
 | `usuario` | Una persona con cuenta | Su `id` es el de la cuenta en el servicio de autenticación. Un correo, una cuenta, una organización (D-66) | HU-01.1 |
 | `usuario_rol` | Los roles de cada persona; puede tener más de uno | Solo `consultor`, `supervisor` y `direccion` (D-56). Quien supervisa o dirige y tiene asignación propia lleva también el rol `consultor` (decisión 36 de D-88) | HU-02.1 |
 | `cliente` | El cliente al que se asigna un consultor | Alias único por organización; zona horaria propia, que da el día de cada asignación | HU-06.1 |
@@ -534,8 +562,8 @@ HU-03.CA-5, CA-6 y CA-7 dependen de historias que no entran en esta entrega (HU-
 |---|---|---|---|
 | 0 | H-2, HU-01.6 | Integración continua en verde; el servicio de autenticación probado | ✅ Cerrado. HU-01.6 en local; lo del servicio gestionado se repite en H-4 |
 | 1 | H-1 | Especificación inicial refutada y aprobada | ✅ Cerrado (D-89) |
-| 2 | HU-03.1 | Organizaciones en la base y comprobación de estructura | Siguiente |
-| 3 | HU-01.1, HU-03.2 | Usuarios; filtro por organización en el código | |
+| 2 | HU-03.1 | Organizaciones en la base y comprobación de estructura | Construido; vuelve por su pull request |
+| 3 | HU-01.1, HU-03.2 | Usuarios; filtro por organización en el código | Siguiente |
 | 4 | HU-01.2, HU-06.1 | Sesión; modelo del aviso | |
 | 5 | HU-01.3, HU-02.1, HU-06.2 | Se puede entrar; roles en la base; regla del aviso | |
 | 6 | H-3, HU-02.2, HU-07.1 | Datos de prueba; autorización; modelo del no reportado | |

@@ -308,6 +308,23 @@ Lo primero: la segunda ronda de Thibaut sobre el PR antes de que yo lo una.
 
 *Ajuste humano:* la Dirección aprobó las correcciones y cuatro decisiones (D-96 a D-99): D-94 sin cobertura mientras tanto, dicho así; aceptar que las rutas de la primera versión sigan en el historial y unir con *squash*; el nombre del autor también en los metadatos del commit; y los tickets v5 con el PRD v9 antes del tramo 8, no en el colchón.
 
+**HU-03.1 · Organización en la base y comprobación de estructura (20 y 23/11/2026, tramo 2)**
+
+```text
+Ticket HU-03.1: Organización en toda tabla de negocio y regla de la base que la filtra para
+cualquier rol. Entrega además la comprobación de estructura: recorre todas las tablas de negocio
+que existan, falla si alguna no tiene organización o no tiene regla, y corre en cada cambio desde
+este ticket.
+```
+
+*Lo primero, antes de escribir:* la especificación dejaba una comprobación «por comprobar al construir HU-03.1»: si la base puede saber que la sesión del pase sigue abierta. El agente la probó en una base desechable antes de diseñar nada, porque el resultado decidía el diseño: sí puede. La salida alternativa, que volvía a la Dirección, no hizo falta.
+
+*Decisiones del agente:* la comprobación de estructura en SQL de solo lectura, con dos listas cerradas escritas en ella (esquemas ajenos y funciones con privilegios del dueño); las pruebas de la base en Python contra la base local, cada caso dentro de una transacción que se deshace; un solo script para levantar la base, el mismo en la máquina y en la integración continua. Los servicios de archivos y de tiempo real de la plataforma se cuentan como «propio motor» en la lista de esquemas ajenos: la especificación no los nombra y el proyecto no los usa.
+
+*Lo que se torció:* al correr las pruebas apareció un hueco que nadie había visto: la plataforma da a los roles de las personas el permiso de vaciar toda tabla nueva (`TRUNCATE`), y vaciar no pasa por las reglas. La migración lo quita, la comprobación de estructura lo detiene en toda tabla futura y `CLAUDE.md` lo dice en la sección 5. También: esta versión de la plataforma ya no da permiso de leer por defecto, así que la API rechazaba la consulta antes de llegar a la regla. Para probar la regla en sí, las pruebas dan el permiso dentro de una transacción que se deshace, como lo dará HU-02.1.
+
+*Ajuste humano:* la regla de `organizacion` necesita la organización de quien consulta, y la tabla de usuarios nace en el tramo 3. La Dirección eligió, entre tres opciones, escribir la regla desde ya sobre una función que hasta el tramo 3 responde siempre «no» (D-100): segura por defecto y sin mover tickets de tramo.
+
 ---
 
 > **El prompt que no funcionó (se registra a propósito).** El 17/10/2026 el agente intentó obtener tres decisiones de la Dirección con un cuadro de opciones (stack, visibilidad del repositorio, resultado de la reunión del 16/09). El cuadro se cerró dos veces sin respuesta porque llegaron mensajes del usuario mientras estaba abierto. Se procedió con las recomendaciones del agente como **supuestos declarados** en el README, revisables sección por sección. Lección: con el reloj puesto, preguntar en texto plano y seguir; no bloquear el trabajo en un diálogo.

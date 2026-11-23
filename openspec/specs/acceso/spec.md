@@ -319,6 +319,13 @@ rechace toda consulta que no venga del servidor, y la sesión cerrada la corta �
 Lo mismo vale para la parte de sesión cerrada del escenario «la base no registra sin usuario
 activo y sesión vigente» (especificación `aviso-inicio`).
 
+*Comprobado al construir HU-03.1 (23/11/2026), en la base local: la base sí puede consultarlo, y
+la salida alternativa no hace falta. La función `sesion_abierta()` responde sí con la sesión
+abierta y no con el pase de una sesión ya cerrada que todavía no expira
+(`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2). Como lo demás probado en local,
+H-4 lo repite en el servicio gestionado. La regla se apoya en `es_mi_organizacion`, que hasta el
+tramo 3 responde siempre «no» (D-100).*
+
 La regla por organización DEBE ser restrictiva: se suma como condición obligatoria a cualquier
 otra, de modo que ninguna regla por rol pueda dejar ver más allá de la organización.
 

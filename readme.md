@@ -591,9 +591,11 @@ HU-03.CA-5, CA-6 y CA-7 dependen de historias que no entran en esta entrega (HU-
 
 Se documentarán aquí tres de los pull requests de la construcción, cada uno con cuántas observaciones tuvo su revisión y cómo se cerraron.
 
-**Pull Request 1**
+**Pull Request 1 — tramo 2, HU-03.1 (`tramo-2/hu-03.1-organizacion` → `feature/entrega-1-JC`)**
 
-Pendiente.
+Qué trae: la tabla `organizacion` con su regla de separación restrictiva y forzada, apoyada en `es_mi_organizacion`, que hasta el tramo 3 responde siempre «no» (D-100); `sesion_abierta()`, que comprueba en la base que la sesión del pase sigue abierta; la validación 1 a 1 de la migración y la comprobación de estructura, que corren en la integración continua con la base levantada; y cuatro pruebas con su caso que pasa y su caso que se rechaza.
+
+Revisión adversarial: cuatro rondas (las tres primeras con dos corridas unidas, la cuarta corta, con una), **37 observaciones distintas, ninguna crítica** (13, 10, 8 y 6). Cierre: **35 corregidas**, **1 corregida con un riesgo aceptado** por la Dirección (D-102: una consulta ya empezada conserva su respuesta de `sesion_abierta()`, acotada por el tiempo máximo de consulta) y **1 límite declarado** (el normalizador de una prueba no entiende comentarios anidados; daría un rojo de más, nunca un verde de más); ninguna descartada. Nacieron además D-101 (la puerta del tramo 8 pide qué dice H-4) y un control del agente para responder cada ronda. Lo que se aprendió: desde la ronda 2, casi todo lo que se encontró nació de las correcciones de la ronda anterior. Las revisiones y sus respuestas están en `docs/revisiones/tramo-2-hu-03.1-organizacion-ronda1-corrida1.md` y siguientes.
 
 **Pull Request 2**
 

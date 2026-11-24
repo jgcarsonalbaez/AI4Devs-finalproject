@@ -8,7 +8,8 @@
 -- y siempre, al final, una fila RESUMEN con lo que recorrió, en números:
 --   RESUMEN <tab> esquemas <tab> tablas <tab> vistas u otros <tab> funciones
 -- Sin filas FALLA, la estructura cumple. En el nombre del objeto, un
--- tabulador o un salto de línea se escriben «?»: un nombre así no puede
+-- tabulador o un salto de línea se escriben «?» (también en la explicación,
+-- que puede nombrar un rol): un nombre así no puede
 -- partir la fila y esconder la falla. La corre scripts/base/comprobar-estructura.py en la
 -- integración continua, en cada cambio; su prueba es
 -- tests/base/prueba-comprobacion-estructura.py.
@@ -22,7 +23,8 @@
 -- LÍMITES DECLARADOS
 --   - Prueba que la regla existe y que está escrita como se pide; que no deje
 --     pasar datos lo prueban los casos con dos organizaciones (HU-03.3).
---   - «Puede omitir las reglas» cubre BYPASSRLS, superusuario y el privilegio
+--   - «Puede omitir las reglas» cubre BYPASSRLS y superusuario, en el rol o en
+--     cualquier rol del que sea miembro, y el privilegio
 --     TRUNCATE, que vacía una tabla sin pasar por ellas. TRIGGER y
 --     REFERENCES tienen su propio motivo: no dejan ver filas por sí solos,
 --     pero CLAUDE.md §5 pide que ninguna tabla de negocio los dé a las
@@ -118,8 +120,14 @@ fallas(objeto, motivo, explicacion) AS (
   SELECT t.objeto, 'rol-de-personas-es-dueno', 'el rol ' || p.rol || ' es dueño de la tabla, o miembro de su dueño'
   FROM tablas t CROSS JOIN personas p WHERE pg_has_role(p.rol, t.relowner, 'MEMBER')
   UNION ALL
-  SELECT r.rolname::text, 'rol-de-personas-omite-reglas', 'el rol puede omitir las reglas de la base'
-  FROM pg_roles r JOIN personas p ON p.rol = r.rolname WHERE r.rolbypassrls OR r.rolsuper
+  -- El rol mismo, o cualquier rol del que sea miembro (directo o en cadena),
+  -- que pueda asumir con SET ROLE: pg_has_role(x, x, 'MEMBER') es cierto, así
+  -- que esta misma consulta cubre el caso directo.
+  SELECT p.rol::text, 'rol-de-personas-omite-reglas',
+         CASE WHEN r.rolname = p.rol THEN 'el rol puede omitir las reglas de la base'
+              ELSE 'el rol es miembro de ' || r.rolname || ', que puede omitir las reglas de la base' END
+  FROM personas p JOIN pg_roles r ON pg_has_role(p.rol, r.oid, 'MEMBER')
+  WHERE r.rolbypassrls OR r.rolsuper
   UNION ALL
   -- TRUNCATE vacía la tabla sin pasar por las reglas: tenerlo es omitirlas.
   SELECT t.objeto, 'rol-de-personas-omite-reglas',
@@ -148,7 +156,7 @@ fallas(objeto, motivo, explicacion) AS (
          'corre con los privilegios de su dueño y no está en la lista cerrada'
   FROM definer WHERE firma NOT IN (SELECT firma FROM funciones_permitidas)
 )
-SELECT 'FALLA', translate(objeto, E'\t\n\r', '???'), motivo, explicacion, NULL FROM fallas
+SELECT 'FALLA', translate(objeto, E'\t\n\r', '???'), motivo, translate(explicacion, E'\t\n\r', '???'), NULL FROM fallas
 UNION ALL
 SELECT 'RESUMEN',
        (SELECT count(*) FROM negocio)::text,

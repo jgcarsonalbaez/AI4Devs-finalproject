@@ -8,6 +8,16 @@
 # Necesita Docker abierto y la herramienta supabase.
 set -euo pipefail
 
+# Siempre desde la raíz del repositorio, se llame desde donde se llame: la
+# herramienta toma el proyecto de la carpeta en que corre, y desde otra
+# carpeta levantaría un proyecto vacío con otro nombre.
+RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$RAIZ"
+if [ ! -f supabase/config.toml ]; then
+  echo "ERROR: no encuentro supabase/config.toml en $RAIZ; no sé qué base levantar." >&2
+  exit 1
+fi
+
 if ! command -v supabase >/dev/null 2>&1; then
   echo "ERROR: no encuentro la herramienta supabase. Instálala y repite." >&2
   exit 1

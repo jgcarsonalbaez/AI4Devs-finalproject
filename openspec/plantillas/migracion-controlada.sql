@@ -31,10 +31,13 @@
 --     falle a la mitad deja creados los objetos de los bloques anteriores, y
 --     la validación 1 a 1 es la que lo delata.
 --     Confirmado para la herramienta de Supabase 2.109.1 el 24/11/2026, en la
---     base local: una migración cuyo segundo bloque falla a propósito no deja
---     el objeto que creó el primero ni queda registrada. Se probó con
---     `supabase migration up`; que `supabase start` y `supabase db reset`
---     apliquen igual se supone, no se probó. Al cambiar de versión, se repite.
+--     base local, con una migración cuyo segundo bloque falla a propósito:
+--       · `supabase migration up` y `supabase db reset`: no queda el objeto
+--         que creó el primer bloque ni la migración registrada;
+--       · `supabase start` (el camino de la integración continua): detiene
+--         todo y borra la base; no queda base, ni entera ni a medias, y el
+--         paso termina en rojo.
+--     Al cambiar de versión de la herramienta, se repite.
 --   - Recrear un índice o una constraint no pierde datos, pero bloquea la
 --     tabla mientras dura. En una tabla grande se planifica aparte.
 --

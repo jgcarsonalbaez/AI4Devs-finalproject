@@ -120,12 +120,14 @@ BEGIN
       -- de la misma cuenta, no pasó su fin fijado (not_after, si el servicio
       -- le puso uno) y el pase es de una persona con sesión (rol
       -- authenticated). Sin pase o sin alguno de esos datos, la respuesta es «no».
+      -- La hora es la del reloj (clock_timestamp), no la del inicio de la
+      -- transacción (now()): una transacción larga no estira la sesión.
       SELECT EXISTS (
         SELECT 1
         FROM auth.sessions s
         WHERE s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
           AND s.user_id = auth.uid()
-          AND (s.not_after IS NULL OR s.not_after > now())
+          AND (s.not_after IS NULL OR s.not_after > clock_timestamp())
           AND auth.jwt() ->> 'role' = 'authenticated'
       );
     $fn$;

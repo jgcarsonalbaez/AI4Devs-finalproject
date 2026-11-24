@@ -305,7 +305,7 @@ el servicio la tenga abierta y que no hayan pasado más de `sesion_dias` días d
 Son las mismas condiciones de «Sesión vigente», puestas también en la base, porque un pase se
 puede usar para consultar la base directamente sin pasar por el servidor.
 
-**Por comprobar al construir HU-03.1:** que la base pueda consultar si la sesión que nombra el pase
+**Por comprobar al construir HU-03.1 (ya comprobado: ver la nota que sigue a este párrafo):** que la base pueda consultar si la sesión que nombra el pase
 sigue abierta en el servicio. Que el pase trae el identificador de su sesión y el momento de
 entrada está comprobado en la prueba local de HU-01.6: el momento de entrada en el resultado P5 del
 resumen, y el identificador de sesión en la salida completa de esa prueba
@@ -323,11 +323,13 @@ activo y sesión vigente» (especificación `aviso-inicio`).
 *Comprobado al construir HU-03.1 (23/11/2026), en la base local: la base sí puede consultarlo, y
 la salida alternativa no hace falta. La función `sesion_abierta()` responde sí con la sesión
 abierta y no con el pase de una sesión ya cerrada que todavía no expira
-(`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2); tampoco con la sesión de otra
-cuenta, sin identificador de sesión, con un pase que dice otro rol ni pasado el fin que el servicio
-le fije a la sesión (casos P4 y N23 a N27). El ticket H-4 del recorte v4 no pide repetir estos casos
-en el servicio gestionado: se agregan a su criterio con los tickets v5 (D-99). La regla se apoya en
-`es_mi_organizacion`, que hasta el tramo 3 responde siempre «no» (D-100; casos N28 a N31 y P5).*
+(`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2). Ampliado el 24/11/2026, tras la
+revisión adversarial del tramo: tampoco responde sí con la sesión de otra cuenta, sin identificador
+de sesión, con un pase que dice otro rol ni pasado el fin que el servicio le fije a la sesión, aunque
+pase durante la consulta; y sí con un fin futuro (casos P4, P6 y N23 a N27 y N32). El ticket H-4 del
+recorte v4 no pide repetir estos casos en el servicio gestionado: se agregan a su criterio con los
+tickets v5 (D-99). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 responde siempre
+«no» (D-100; casos N28 a N31, N33 a N36 y P5).*
 
 La regla por organización DEBE ser restrictiva: se suma como condición obligatoria a cualquier
 otra, de modo que ninguna regla por rol pueda dejar ver más allá de la organización.
@@ -364,8 +366,10 @@ aviso»).
 
 Origen: HU-03.CA-1, HU-03.CA-2, HU-03.CA-3.
 
-**Límite declarado:** la comprobación de estructura prueba que la regla existe, no que esté bien
-escrita. Que no deje pasar datos lo prueban los escenarios con dos organizaciones.
+**Límite declarado:** la comprobación de estructura prueba que la regla existe y que está escrita
+como se pide (restrictiva, para toda orden y todo rol, con la función de organización al leer y al
+escribir), no que se comporte bien. Que no deje pasar datos lo prueban los escenarios con dos
+organizaciones.
 
 #### Scenario: consulta directa a la base
 - **DADO** dos organizaciones con datos

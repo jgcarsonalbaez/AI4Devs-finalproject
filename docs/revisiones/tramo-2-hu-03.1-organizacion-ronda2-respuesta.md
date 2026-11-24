@@ -13,8 +13,7 @@
 
 | Cierre | Cuántos |
 |---|---|
-| Corregido (1 a 8 y 10) | 9 |
-| Corrección propuesta, pendiente de la Dirección (9) | 1 |
+| Corregido (1 a 10; el 9, con la decisión D-101 de la Dirección) | 10 |
 | **Total** | **10** |
 
 ## Hallazgo por hallazgo
@@ -29,7 +28,7 @@
 | 6 | «Exactamente 20 filas» no ve una fila repetida, porque los nombres se guardan en un diccionario (c1-6, c2-7) | **Corregido** | La prueba guarda cada fila tal como vino, en orden y con repeticiones, y exige 20 filas con los 20 nombres. Control N29 de la prueba de validación: una validación cambiada para repetir una fila da 21 filas con 20 nombres, y la cuenta lo ve |
 | 7 | La especificación sigue diciendo «Por comprobar» junto a «Comprobado», y fecha el 23/11 casos del 24/11 (c1-7, c2-4) | **Corregido** | El rótulo dice ahora «Por comprobar al construir HU-03.1 (ya comprobado: ver la nota que sigue a este párrafo)». La nota separa lo comprobado el 23/11 (P1, N1 y P2) de lo ampliado el 24/11 tras la revisión. El texto aprobado del requisito no cambió |
 | 8 | La especificación dice que la comprobación prueba que la regla existe, no que esté bien escrita, y el código sí compara cómo está escrita (c1-8, c2-5) | **Corregido** | El límite declarado dice ahora lo exacto: la comprobación prueba que la regla existe y que está escrita como se pide (restrictiva, para toda orden y todo rol, con la función de organización al leer y al escribir), no que se comporte bien; eso lo prueban los escenarios con dos organizaciones. Es una precisión del límite, no un cambio de requisito; la revisa la Dirección con este pull request |
-| 9 | Que H-4 repita los casos de `sesion_abierta()` en el servicio gestionado sigue sin ser exigible: D-99 pide que existan los tickets v5, no qué contienen (c2-1) | **Propuesto · pendiente de la Dirección** | Cierto. Propuesta: que la puerta del tramo 8 en `CLAUDE.md` §6 (D-99) diga también que el H-4 de los tickets v5 pide repetir contra el servicio gestionado los casos de `sesion_abierta()` (P1, N1, P2, P4, P6 y N23 a N27, y N32). Es contenido de una decisión de la Dirección, así que no se escribe sin su OK. Mientras tanto queda en el seguimiento diario como contenido obligatorio de los tickets v5 |
+| 9 | Que H-4 repita los casos de `sesion_abierta()` en el servicio gestionado sigue sin ser exigible: D-99 pide que existan los tickets v5, no qué contienen (c2-1) | **Corregido (D-101)** | Cierto. Se propuso a la Dirección, que lo aprobó el 24/11/2026 como D-101: la puerta del tramo 8 en `CLAUDE.md` §6 no deja abrir ese pull request si el H-4 de los tickets v5 no pide repetir contra el servicio gestionado los casos de `sesion_abierta()` (P1, N1, P2, P4, P6, N23 a N27 y N32). Igual que D-99, es una puerta de la Dirección: la integración continua no la comprueba |
 | 10 | `sesion_abierta()` compara `not_after` con la hora de inicio de la transacción, no con la del reloj (c2-2) | **Corregido** | Cierto: `now()` se queda fijo en el inicio de la transacción. Ahora es `clock_timestamp()`. Caso N32: el fin se fija un segundo adelante, la consulta espera un segundo y medio dentro de la misma transacción, y la función responde no; con `now()` respondía sí |
 
 ## Un error propio, y su control

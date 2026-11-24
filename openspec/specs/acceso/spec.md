@@ -328,7 +328,7 @@ revisión adversarial del tramo: tampoco responde sí con la sesión de otra cue
 de sesión, con un pase que dice otro rol ni pasado el fin que el servicio le fije a la sesión, aunque
 pase durante la consulta; y sí con un fin futuro (casos P4, P6 y N23 a N27 y N32). El ticket H-4 del
 recorte v4 no pide repetir estos casos en el servicio gestionado: se agregan a su criterio con los
-tickets v5 (D-99). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 responde siempre
+tickets v5 (D-99), y sin eso no se abre el pull request del tramo 8 (D-101). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 responde siempre
 «no» (D-100; casos N28 a N31, N33 a N36 y P5).*
 
 La regla por organización DEBE ser restrictiva: se suma como condición obligatoria a cualquier

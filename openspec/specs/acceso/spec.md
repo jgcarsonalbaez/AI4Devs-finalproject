@@ -305,7 +305,7 @@ el servicio la tenga abierta y que no hayan pasado más de `sesion_dias` días d
 Son las mismas condiciones de «Sesión vigente», puestas también en la base, porque un pase se
 puede usar para consultar la base directamente sin pasar por el servidor.
 
-**Por comprobar al construir HU-03.1 (ya comprobado: ver la nota que sigue a este párrafo):** que la base pueda consultar si la sesión que nombra el pase
+**Comprobado al construir HU-03.1 (23/11/2026; el resultado, en la nota que sigue a este párrafo). Antes de construirlo quedaba por comprobar:** que la base pueda consultar si la sesión que nombra el pase
 sigue abierta en el servicio. Que el pase trae el identificador de su sesión y el momento de
 entrada está comprobado en la prueba local de HU-01.6: el momento de entrada en el resultado P5 del
 resumen, y el identificador de sesión en la salida completa de esa prueba
@@ -326,7 +326,9 @@ abierta y no con el pase de una sesión ya cerrada que todavía no expira
 (`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2). Ampliado el 24/11/2026, tras la
 revisión adversarial del tramo: tampoco responde sí con la sesión de otra cuenta, sin identificador
 de sesión, con un pase que dice otro rol ni pasado el fin que el servicio le fije a la sesión, aunque
-pase durante la consulta; y sí con un fin futuro (casos P4, P6 y N23 a N27 y N32). El ticket H-4 del
+pase entre dos consultas de la misma transacción; y sí con un fin futuro (casos P4, P6 y N23 a N27 y
+N32). La hora que mira es la del inicio de cada consulta: una consulta que empezó antes del fin
+conserva su respuesta hasta terminar (riesgo aceptado, D-102; caso P7). El ticket H-4 del
 recorte v4 no pide repetir estos casos en el servicio gestionado: se agregan a su criterio con los
 tickets v5 (D-99), y sin eso no se abre el pull request del tramo 8 (D-101). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 responde siempre
 «no» (D-100; casos N28 a N31, N33 a N36 y P5).*
@@ -564,3 +566,4 @@ Origen: HU-02.CA-1 a CA-8; Definition of Done de los tickets de tipo Endpoint/AP
 | Lo comprobado del servicio lo fue en una instancia local, no en la gestionada | HU-01.6 | El despliegue (H-4) repite contra el servicio gestionado las pruebas P1, P2 y P5 de HU-01.6 |
 | Si una cuenta cambia su correo en el propio servicio, `usuario.correo` queda viejo y la base no lo detecta | D-87 | Los correos no se cambian: solo un error de captura, excepcional y una sola vez. El sistema no ofrece cambiar el correo, y la base comprueba la coincidencia cada vez que se escribe el usuario |
 | El momento de entrada que usa «Sesión vigente» es un campo del pase que la documentación del servicio no describe; una actualización del servicio podría cambiarlo | D-85 | La prueba P5 lo comprobó en local y H-4 la repite en el servicio gestionado; si el campo falta, la sesión se trata como vencida, nunca como vigente |
+| `sesion_abierta()` mira la hora del inicio de cada consulta: una consulta que empezó antes del fin fijado de la sesión conserva su respuesta hasta terminar | D-102 | La siguiente consulta ya mira la hora nueva (casos N32 y P7 de `tests/base/prueba-acceso-organizacion.py`), y una consulta por la API no dura más de 8 segundos: es el tiempo máximo que la base local trae configurado para `authenticator`, el rol con que entra la API, y para `authenticated` (visto el 24/11/2026 en la base local; en el servicio gestionado no se ha comprobado). Entra en las características a considerar en versiones futuras (D-48): comprobar ese tiempo máximo en el servicio gestionado, o dejarlo fijado por una migración |

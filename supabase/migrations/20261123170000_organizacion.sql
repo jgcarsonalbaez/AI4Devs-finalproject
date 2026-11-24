@@ -120,14 +120,18 @@ BEGIN
       -- de la misma cuenta, no pasó su fin fijado (not_after, si el servicio
       -- le puso uno) y el pase es de una persona con sesión (rol
       -- authenticated). Sin pase o sin alguno de esos datos, la respuesta es «no».
-      -- La hora es la del reloj (clock_timestamp), no la del inicio de la
-      -- transacción (now()): una transacción larga no estira la sesión.
+      -- La hora es la del inicio de cada consulta (statement_timestamp), no la
+      -- del inicio de la transacción (now()): una transacción larga no estira
+      -- la sesión más allá de la consulta en curso. No es la del reloj
+      -- (clock_timestamp), que cambia dentro de una consulta y contradice que
+      -- la función esté declarada STABLE. Riesgo aceptado (D-102): una
+      -- consulta que empezó antes del fin conserva su respuesta hasta terminar.
       SELECT EXISTS (
         SELECT 1
         FROM auth.sessions s
         WHERE s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
           AND s.user_id = auth.uid()
-          AND (s.not_after IS NULL OR s.not_after > clock_timestamp())
+          AND (s.not_after IS NULL OR s.not_after > statement_timestamp())
           AND auth.jwt() ->> 'role' = 'authenticated'
       );
     $fn$;

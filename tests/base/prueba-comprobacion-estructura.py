@@ -8,12 +8,18 @@ Cada caso corre dentro de una transacción que se deshace al final: crea el
 objeto del caso, corre supabase/comprobaciones/estructura.sql y vuelve todo
 atrás. No deja nada en la base.
 
+La salida se lee con analizar() de scripts/base/comprobar-estructura.py, el
+mismo que usa la integración continua: lo que aquí se prueba es lo que allí
+se acepta. Un caso que da errores de lectura (salida mal formada, sin
+RESUMEN o con cero tablas) cuenta como mal.
+
 Necesita la base local levantada (`supabase start`) con las migraciones
 aplicadas.
 
 Uso:  python3 tests/base/prueba-comprobacion-estructura.py
 Sale con 0 si todos los casos dan lo esperado, y con 1 si alguno falla.
 """
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -22,6 +28,10 @@ sys.path.insert(0, str(RAIZ / "scripts" / "base"))
 from base_local import psql  # noqa: E402
 
 COMPROBACION = RAIZ / "supabase" / "comprobaciones" / "estructura.sql"
+_spec = importlib.util.spec_from_file_location("comprobar_estructura",
+                                               RAIZ / "scripts" / "base" / "comprobar-estructura.py")
+comprobar = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(comprobar)
 
 # Una tabla bien hecha: organización obligatoria, reglas activadas y forzadas,
 # su regla restrictiva por organización para todo y para todos, y sin el
@@ -111,6 +121,23 @@ CASOS = [
     ("N23 sin sesión se puede vaciar una tabla",
      BIEN + "grant truncate on public.prueba_bien to anon;",
      ("public.prueba_bien", "rol-de-personas-omite-reglas")),
+    ("N24 el rol de las personas puede colgar disparadores de una tabla",
+     BIEN + "grant trigger on public.prueba_bien to authenticated;",
+     ("public.prueba_bien", "rol-de-personas-con-trigger-o-references")),
+    ("N25 sin sesión se puede referenciar una tabla",
+     "grant references on public.organizacion to anon;",
+     ("public.organizacion", "rol-de-personas-con-trigger-o-references")),
+    # N26 y N27: solo el superusuario de la base local puede fabricar ese estado.
+    ("N26 tabla foránea, aunque tenga organizacion_id",
+     "create foreign data wrapper prueba_fdw; create server prueba_srv foreign data wrapper prueba_fdw;"
+     "create foreign table public.prueba_foranea (organizacion_id uuid not null) server prueba_srv;",
+     ("public.prueba_foranea", "tabla-foranea")),
+    ("N27 el rol de las personas es superusuario",
+     "alter role anon superuser;",
+     ("anon", "rol-de-personas-omite-reglas")),
+    ("N28 un tabulador en el nombre de la tabla no esconde la falla",
+     "create table public.\"prueba\tmala\" (id int);",
+     ("public.prueba?mala", "sin-organizacion_id")),
     ("N20 la regla de organizacion ya no compara su id",
      "drop policy organizacion_separacion on public.organizacion;"
      "create policy organizacion_separacion on public.organizacion as restrictive for all to public "
@@ -122,24 +149,18 @@ CASOS = [
 ]
 
 
-COMO_SUPERUSUARIO = {"N18", "N19"}
+COMO_SUPERUSUARIO = {"N18", "N19", "N26", "N27"}
 
 
 def correr(nombre: str, preparacion: str):
-    """Devuelve (fallas, resumen, error) de correr la comprobación tras la preparación."""
+    """Devuelve (fallas, errores de lectura, error de la base) tras la preparación."""
     sql = f"begin;\n{preparacion}\n{COMPROBACION.read_text(encoding='utf-8')}\nrollback;\n"
     usuario = "supabase_admin" if nombre.split()[0] in COMO_SUPERUSUARIO else "postgres"
     r = psql(sql, usuario=usuario)
     if r.returncode != 0:
         return None, None, r.stderr.strip()
-    fallas, resumen = set(), None
-    for linea in r.stdout.splitlines():
-        partes = linea.split("\t")
-        if partes[0] == "FALLA" and len(partes) >= 3:
-            fallas.add((partes[1], partes[2]))
-        elif partes[0] == "RESUMEN":
-            resumen = linea
-    return fallas, resumen, None
+    fallas, _, errores = comprobar.analizar(r.stdout)
+    return {(f[0], f[1]) for f in fallas}, errores, None
 
 
 def main() -> int:
@@ -148,14 +169,14 @@ def main() -> int:
         return 1
     malos = 0
     for nombre, preparacion, esperado in CASOS:
-        fallas, resumen, error = correr(nombre, preparacion)
+        fallas, errores, error = correr(nombre, preparacion)
         if error is not None:
             malos += 1
             print(f"✗ {nombre}: la base rechazó el caso.\n  {error}")
             continue
-        if resumen is None:
+        if errores:
             malos += 1
-            print(f"✗ {nombre}: la comprobación no dio su línea RESUMEN.")
+            print(f"✗ {nombre}: la salida de la comprobación no se puede leer: {errores}")
             continue
         if esperado is None:
             ok = not fallas

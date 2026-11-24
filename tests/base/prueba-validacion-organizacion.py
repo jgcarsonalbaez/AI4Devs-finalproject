@@ -61,7 +61,66 @@ CASOS = [
      "TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion"),
     ("P2 el permiso de leer, que dará HU-02.1, no cambia la fila de privilegios",
      "grant select on public.organizacion to authenticated;", None),
+    # Un desvío por cada fila que no tenía el suyo (revisión del tramo 2, ronda 1).
+    ("N15 la tabla no existe",
+     "drop table public.organizacion cascade;", "tabla public.organizacion"),
+    ("N16 id con otro valor por defecto",
+     "alter table public.organizacion alter column id drop default;", "columna id"),
+    ("N17 la llave primaria sobre otra columna",
+     "alter table public.organizacion drop constraint organizacion_pkey;"
+     "alter table public.organizacion add constraint organizacion_pkey primary key (nombre);",
+     "constraint organizacion_pkey"),
+    ("N18 el nombre único junto con otra columna",
+     "alter table public.organizacion drop constraint organizacion_nombre_key;"
+     "alter table public.organizacion add constraint organizacion_nombre_key unique (nombre, zona_horaria);",
+     "constraint organizacion_nombre_key"),
+    ("N19 la comprobación de la zona con otra condición",
+     "alter table public.organizacion drop constraint organizacion_zona_horaria_check;"
+     "alter table public.organizacion add constraint organizacion_zona_horaria_check check (zona_horaria <> '');",
+     "constraint organizacion_zona_horaria_check"),
+    ("N20 reglas forzadas pero sin activar",
+     "alter table public.organizacion disable row level security;", "reglas de public.organizacion"),
+    ("N21 la regla vale solo para leer",
+     "drop policy organizacion_separacion on public.organizacion;"
+     "create policy organizacion_separacion on public.organizacion as restrictive for select to public "
+     "using (public.es_mi_organizacion(id));",
+     "regla organizacion_separacion"),
+    ("N22 la regla vale solo para un rol",
+     "alter policy organizacion_separacion on public.organizacion to authenticated;",
+     "regla organizacion_separacion"),
+    ("N23 la regla deja leer todo",
+     "alter policy organizacion_separacion on public.organizacion using (true);",
+     "regla organizacion_separacion"),
+    ("N24 la regla deja escribir en cualquier organización",
+     "alter policy organizacion_separacion on public.organizacion with check (true);",
+     "regla organizacion_separacion"),
+    ("N25 con sesión no se puede ejecutar sesion_abierta",
+     "revoke execute on function public.sesion_abierta() from authenticated;",
+     "quién ejecuta public.sesion_abierta()"),
+    ("N26 sin sesión no se puede ejecutar es_mi_organizacion",
+     "revoke execute on function public.es_mi_organizacion(uuid) from anon;",
+     "quién ejecuta public.es_mi_organizacion(uuid)"),
+    ("N27 con sesión se pueden colgar disparadores de la tabla",
+     "grant trigger on public.organizacion to authenticated;",
+     "TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion"),
+    ("N28 con sesión se puede referenciar la tabla",
+     "grant references on public.organizacion to authenticated;",
+     "TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion"),
 ]
+
+# Las 20 filas que la validación debe dar, ni una más ni una menos: una fila
+# que desaparece deja de comprobar sin que nada falle.
+FILAS = {
+    "tabla public.organizacion", "columnas de public.organizacion", "columna id", "columna nombre",
+    "columna sesion_dias", "columna zona_horaria", "constraints de public.organizacion",
+    "constraint organizacion_pkey", "constraint organizacion_nombre_key",
+    "constraint organizacion_sesion_dias_check", "constraint organizacion_zona_horaria_check",
+    "reglas de public.organizacion", "reglas sobre public.organizacion", "regla organizacion_separacion",
+    "función public.es_zona_horaria(text)", "función public.sesion_abierta()",
+    "quién ejecuta public.sesion_abierta()", "función public.es_mi_organizacion(uuid)",
+    "quién ejecuta public.es_mi_organizacion(uuid)",
+    "TRUNCATE, TRIGGER y REFERENCES de las personas sobre public.organizacion",
+}
 
 
 def correr(desvio: str):
@@ -90,6 +149,10 @@ def main() -> int:
         fallas = sorted(k for k, v in filas.items() if v != "OK")
         if not filas:
             ok, detalle = False, "la validación no devolvió filas"
+        elif set(filas) != FILAS:
+            ok = False
+            detalle = (f"no da las {len(FILAS)} filas esperadas: faltan {sorted(FILAS - set(filas))}, "
+                       f"sobran {sorted(set(filas) - FILAS)}")
         elif fila is None:
             ok = not fallas
             detalle = "todo OK" if ok else f"fallas inesperadas: {fallas}"

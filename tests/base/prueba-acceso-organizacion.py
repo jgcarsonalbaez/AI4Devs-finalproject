@@ -5,9 +5,14 @@ la API de la base, con el pase de una persona, y el SQL directo.
 
 - sesion_abierta(): «Por comprobar al construir HU-03.1» de
   openspec/specs/acceso/spec.md, requisito «Separación por organización en
-  la base». Sí con la sesión abierta; no con el pase de una sesión cerrada.
+  la base». Sí con la sesión abierta; no con el pase de una sesión cerrada,
+  con la sesión de otra cuenta, sin identificador de sesión, con un pase que
+  dice otro rol ni pasado el fin fijado de la sesión. Sin sesión no se puede
+  preguntar.
 - organizacion: hasta el tramo 3 nadie la ve ni la cambia por la API (D-100),
-  ni con sesión ni sin ella.
+  ni con sesión ni sin ella. es_mi_organizacion responde «no», y con una
+  regla permisiva que deja todo es la restrictiva la que corta (con su
+  control: sin la restrictiva, sí se ven filas).
 - Las constraints de organizacion, con un caso que pasa y uno que no.
 
 Crea una cuenta de prueba con correo de example.com y una organización de
@@ -19,6 +24,7 @@ Necesita la base local levantada (`supabase start`) con las migraciones.
 Uso:  python3 tests/base/prueba-acceso-organizacion.py
 Sale con 0 si todos los casos dan lo esperado, y con 1 si alguno falla.
 """
+import base64
 import json
 import subprocess
 import sys
@@ -38,6 +44,8 @@ def entorno() -> dict:
         r = subprocess.run(["supabase", "status", "-o", "env"], cwd=RAIZ, capture_output=True, text=True, timeout=60)
     except FileNotFoundError:
         sys.exit("ERROR: no encuentro la herramienta supabase; sin ella no sé la URL ni las claves de la base local.")
+    except subprocess.TimeoutExpired:
+        sys.exit("ERROR: `supabase status` no respondió en 60 segundos. ¿Está levantada la base local?")
     valores = {}
     for linea in r.stdout.splitlines():
         if "=" in linea:
@@ -75,6 +83,31 @@ def entrar(correo: str, clave: str) -> str:
     return cuerpo["access_token"]
 
 
+def crear_cuenta() -> tuple[str, str]:
+    """Crea una cuenta de prueba con correo de example.com. Devuelve (correo, clave)."""
+    correo, clave = f"prueba-{uuid.uuid4()}@example.com", f"Prueba-{uuid.uuid4()}"
+    codigo, cuerpo = api("POST", "/auth/v1/admin/users", {"email": correo, "password": clave, "email_confirm": True},
+                         pase=ENV["SERVICE_ROLE_KEY"], clave=ENV["SERVICE_ROLE_KEY"])
+    if codigo != 200:
+        sys.exit(f"ERROR: no se pudo crear la cuenta de prueba ({codigo}): {cuerpo}")
+    return correo, clave
+
+
+def contenido(pase: str) -> dict:
+    """Lo que dice el pase (su parte central), sin comprobar la firma: solo para la prueba."""
+    centro = pase.split(".")[1]
+    return json.loads(base64.urlsafe_b64decode(centro + "=" * (-len(centro) % 4)))
+
+
+def con_pase(rol: str, pase: dict, consulta: str, antes: str = "", usuario: str = "postgres"
+             ) -> subprocess.CompletedProcess:
+    """Corre `consulta` como la persona: con su rol y lo que dice su pase, como la API se lo pasa
+    a la base. `antes` corre como `usuario` dentro de la misma transacción, que se deshace."""
+    return psql(f"begin;\n{antes}\nset local role {rol};\n"
+                f"set local request.jwt.claims = '{json.dumps(pase)}';\n{consulta}\nrollback;\n",
+                usuario=usuario)
+
+
 def main() -> int:
     resultados = []
 
@@ -86,12 +119,11 @@ def main() -> int:
     nombre_org = f"Organización de prueba {uuid.uuid4()}"
     org_id = psql_ok(f"insert into public.organizacion (nombre, zona_horaria) "
                      f"values ('{nombre_org}', 'America/Panama') returning id;").strip()
-    correo, clave = f"prueba-{uuid.uuid4()}@example.com", f"Prueba-{uuid.uuid4()}"
-    codigo, cuerpo = api("POST", "/auth/v1/admin/users", {"email": correo, "password": clave, "email_confirm": True},
-                         pase=ENV["SERVICE_ROLE_KEY"], clave=ENV["SERVICE_ROLE_KEY"])
-    if codigo != 200:
-        sys.exit(f"ERROR: no se pudo crear la cuenta de prueba ({codigo}): {cuerpo}")
+    correo, clave = crear_cuenta()
     pase_a, pase_b = entrar(correo, clave), entrar(correo, clave)
+    # Otra cuenta, con su propia sesión abierta: para probar que una sesión
+    # ajena no vale aunque esté abierta.
+    pase_otra = entrar(*crear_cuenta())
 
     try:
         # sesion_abierta(): la comprobación que la spec dejó para este ticket.
@@ -106,6 +138,31 @@ def main() -> int:
         caso("P2 la otra sesión de la misma cuenta sigue abierta", (c, r) == (200, True), f"respondió {c} {r}")
         c, r = api("POST", "/rest/v1/rpc/sesion_abierta", {})
         caso("N2 sin pase no se puede preguntar", c in (401, 403), f"respondió {c}")
+
+        # sesion_abierta() por SQL directo, con lo que dice el pase: cada condición
+        # de la función con su caso. P4 es el control: el mismo camino sí dice «sí».
+        def responde(r: subprocess.CompletedProcess) -> str:
+            return r.stdout.strip() if r.returncode == 0 else f"error: {r.stderr.strip()}"
+
+        pase_bueno, pase_ajeno = contenido(pase_b), contenido(pase_otra)
+        r = con_pase("authenticated", pase_bueno, "select public.sesion_abierta();")
+        caso("P4 por SQL, con el pase de la sesión abierta, responde sí", responde(r) == "t", responde(r))
+        r = con_pase("authenticated", {**pase_bueno, "session_id": pase_ajeno["session_id"]},
+                     "select public.sesion_abierta();")
+        caso("N23 la sesión abierta de otra cuenta no vale", responde(r) == "f", responde(r))
+        r = con_pase("authenticated", {k: v for k, v in pase_bueno.items() if k != "session_id"},
+                     "select public.sesion_abierta();")
+        caso("N24 un pase sin identificador de sesión no vale", responde(r) == "f", responde(r))
+        r = con_pase("authenticated", {**pase_bueno, "role": "service_role"}, "select public.sesion_abierta();")
+        caso("N25 un pase que dice otro rol no vale", responde(r) == "f", responde(r))
+        r = con_pase("anon", {**pase_bueno, "role": "anon"}, "select public.sesion_abierta();")
+        caso("N26 sin sesión (rol anon) no se puede preguntar",
+             r.returncode != 0 and "permission denied" in r.stderr, responde(r))
+        r = con_pase("authenticated", pase_bueno, "select public.sesion_abierta();",
+                     antes=f"update auth.sessions set not_after = now() - interval '1 minute' "
+                           f"where id = '{pase_bueno['session_id']}';",
+                     usuario="supabase_admin")
+        caso("N27 una sesión que pasó su fin fijado no vale", responde(r) == "f", responde(r))
 
         # organizacion por la API: nadie la ve ni la cambia hasta el tramo 3 (D-100).
         # Hoy la API la rechaza antes de llegar a la regla, porque las personas
@@ -153,6 +210,31 @@ def main() -> int:
              r.returncode == 0 and r.stdout.strip() == "0", f"quitó {r.stdout.strip() or r.stderr.strip()}")
         r = como_persona("authenticated", "truncate public.organizacion;")
         caso("N17 authenticated no puede vaciar la tabla", r.returncode != 0, "se rechaza" if r.returncode else "se aceptó")
+
+        # es_mi_organizacion() hasta el tramo 3 (D-100): responde «no» siempre. Sin
+        # regla permisiva la base ya no deja ver nada, así que N12 a N16 pasarían
+        # aunque respondiera «sí». Por eso se prueba la función directamente y,
+        # con una regla permisiva que deja todo, que es la restrictiva la que corta.
+        # P5 es el control: sin la restrictiva, el mismo camino sí ve filas.
+        consulta = f"select public.es_mi_organizacion('{org_id}');"
+        r = con_pase("authenticated", pase_bueno, consulta)
+        caso("N28 con sesión, es_mi_organizacion responde no", responde(r) == "f", responde(r))
+        r = con_pase("anon", {"role": "anon"}, consulta)
+        caso("N29 sin sesión, es_mi_organizacion responde no", responde(r) == "f", responde(r))
+        permisiva = ("grant select, insert on public.organizacion to authenticated;\n"
+                     "create policy prueba_permisiva on public.organizacion as permissive for all to public "
+                     "using (true) with check (true);\n")
+        r = con_pase("authenticated", pase_bueno, "select count(*) from public.organizacion;", antes=permisiva)
+        caso("N30 con una regla permisiva que deja todo, la restrictiva no deja ver nada",
+             responde(r) == "0", f"vio {responde(r)}")
+        r = con_pase("authenticated", pase_bueno, "insert into public.organizacion (nombre, zona_horaria) "
+                                                  f"values ('N31 {uuid.uuid4()}', 'UTC');", antes=permisiva)
+        caso("N31 con una regla permisiva que deja todo, la restrictiva no deja crear",
+             r.returncode != 0 and "row-level security" in r.stderr, responde(r))
+        r = con_pase("authenticated", pase_bueno, "select count(*) from public.organizacion;",
+                     antes=permisiva + "drop policy organizacion_separacion on public.organizacion;\n")
+        caso("P5 control: sin la regla restrictiva, el mismo camino sí ve filas",
+             responde(r).isdigit() and int(responde(r)) >= 1, f"vio {responde(r)}")
 
         # Constraints, por SQL directo, dentro de una transacción que se deshace.
         def inserta(valores: str) -> bool:

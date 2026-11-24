@@ -95,6 +95,8 @@ jobs:
           version: 2.109.1
       - name: Base local con las migraciones aplicadas
         run: bash scripts/base/levantar-base.sh
+      - name: Los scripts de la base deciden bien (sin base)
+        run: python3 tests/base/prueba-scripts-base.py
       - name: Validación 1 a 1 de cada migración
         run: python3 scripts/base/correr-validaciones.py
       - name: Comprobación de estructura (HU-03.1)

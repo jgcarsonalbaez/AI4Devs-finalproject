@@ -3,12 +3,14 @@
 Prueba con datos de lo que entrega HU-03.1 en la base, por las dos puertas:
 la API de la base, con el pase de una persona, y el SQL directo.
 
-- sesion_abierta(): «Por comprobar al construir HU-03.1» de
+- sesion_abierta(): lo que quedaba por comprobar al construir HU-03.1 y ya
+  está comprobado («Comprobado al construir HU-03.1» de
   openspec/specs/acceso/spec.md, requisito «Separación por organización en
-  la base». Sí con la sesión abierta; no con el pase de una sesión cerrada,
+  la base»). Sí con la sesión abierta; no con el pase de una sesión cerrada,
   con la sesión de otra cuenta, sin identificador de sesión, con un pase que
   dice otro rol ni pasado el fin fijado de la sesión. Sin sesión no se puede
-  preguntar.
+  preguntar. Mira la hora del inicio de cada consulta (riesgo aceptado
+  D-102), acotada por el tiempo máximo de consulta de los roles de la API.
 - organizacion: hasta el tramo 3 nadie la ve ni la cambia por la API (D-100),
   ni con sesión ni sin ella. es_mi_organizacion responde «no», y con una
   regla permisiva que deja todo es la restrictiva la que corta (con su
@@ -179,13 +181,39 @@ def main() -> int:
         # consulta, como corresponde a una función declarada STABLE. Una sola
         # consulta que empezó antes del fin conserva su respuesta hasta terminar.
         # Este caso lo deja escrito: si cambia, cambió la garantía declarada.
+        # El fin se fija 3 segundos adelante y la consulta espera 4: hay margen
+        # para que la consulta empiece antes del fin aunque la máquina vaya
+        # lenta (revisión del tramo 2, ronda 4).
         r = con_pase("authenticated", pase_bueno,
-                     "select public.sesion_abierta() from (select pg_sleep(1.5)) espera;",
-                     antes=f"update auth.sessions set not_after = clock_timestamp() + interval '1 second' "
+                     "select public.sesion_abierta() from (select pg_sleep(4)) espera;",
+                     antes=f"update auth.sessions set not_after = clock_timestamp() + interval '3 seconds' "
                            f"where id = '{pase_bueno['session_id']}';",
                      usuario="supabase_admin")
         caso("P7 una consulta que empezó antes del fin conserva su respuesta hasta terminar (riesgo aceptado, "
              "D-102)", responde(r) == "t", responde(r))
+        # Lo que acota D-102: el tiempo máximo de consulta de los roles de la
+        # API. Si una actualización lo quita o lo sube, la cobertura declarada
+        # deja de ser cierta y este caso lo dice. N37 es el control de la lectura.
+        def hasta_8s(config: str) -> bool:
+            """¿Trae statement_timeout, mayor que cero y de 8 segundos o menos?
+            `config` es un ajuste del rol por línea, tal como los da unnest(rolconfig)."""
+            valores = [a.split("=", 1)[1] for a in config.splitlines() if a.startswith("statement_timeout=")]
+            if len(valores) != 1:
+                return False
+            m = re.fullmatch(r"(\d+)\s*(ms|s|min)?", valores[0].strip())
+            if not m:
+                return False
+            ms = int(m.group(1)) * {"ms": 1, None: 1, "s": 1000, "min": 60000}[m.group(2)]
+            return 0 < ms <= 8000
+
+        for rol in ("authenticator", "authenticated"):
+            config = psql_ok(f"select c from pg_roles, unnest(rolconfig) c where rolname = '{rol}';").strip()
+            caso(f"P9 {rol} trae un tiempo máximo de consulta de 8 segundos o menos (cobertura de D-102)",
+                 hasta_8s(config), " · ".join(config.splitlines()) or "sin ajustes")
+        caso("N37 control: un tiempo máximo de 30 segundos, uno de cero, o ninguno, no pasan la lectura",
+             not hasta_8s("statement_timeout=30s") and not hasta_8s("statement_timeout=0")
+             and not hasta_8s("lock_timeout=8s") and not hasta_8s("")
+             and hasta_8s("lock_timeout=8s\nstatement_timeout=8s"), "lectura comprobada")
 
         # organizacion por la API: nadie la ve ni la cambia hasta el tramo 3 (D-100).
         # Hoy la API la rechaza antes de llegar a la regla, porque las personas
@@ -279,7 +307,10 @@ def main() -> int:
         # HU-01.1 (tramo 3) lo cambia, y con él este caso.
         # Se quitan los comentarios de línea («--» hasta el fin de la línea, también
         # al final de una sentencia) y los de bloque («/* … */»), y se normalizan
-        # los espacios. P8 es el control del normalizador, sin base.
+        # los espacios. Límite declarado: no entiende comentarios de bloque
+        # anidados, que PostgreSQL admite; con uno, N36 daría un rojo falso (el
+        # lado seguro), no un verde falso. P8 es el control del normalizador:
+        # no consulta la base, pero corre dentro de esta prueba, que sí la necesita.
         def sin_comentarios(texto: str) -> str:
             texto = re.sub(r"/\*.*?\*/", " ", texto, flags=re.DOTALL)
             texto = re.sub(r"--[^\n]*", " ", texto)

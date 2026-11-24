@@ -9,15 +9,20 @@ integración continua queda en verde, sin necesitar la base:
   y ninguna validación huérfana.
 - leer_sql() de base_local.py: un fichero que falta se informa con nuestro
   mensaje, no con un error de Python.
+- main() de cada script: que la decisión de la integración continua use de
+  verdad esas piezas (se le cambia de dónde lee y qué le responde la base).
 
 Un caso que debe pasar y uno que debe rechazarse por pieza (CLAUDE.md §4).
 
 Uso:  python3 tests/base/prueba-scripts-base.py
 Sale con 0 si todos los casos dan lo esperado, y con 1 si alguno falla.
 """
+import contextlib
 import importlib.util
+import io
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -86,6 +91,57 @@ def main() -> int:
             mensaje = str(salida.code)
             caso("N8 un fichero que falta se informa con mensaje propio",
                  mensaje.startswith("ERROR: no existe") and "no-existe.sql" in mensaje, mensaje)
+
+    # main() de cada script: que la decisión de la integración continua use de
+    # verdad las piezas anteriores. Se le cambia de dónde lee y qué le responde
+    # la base, sin base de verdad.
+    def correr_main(modulo, *args):
+        salida = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(salida):
+                codigo = modulo.main(*args)
+        except SystemExit as e:
+            return f"salió: {e.code}", salida.getvalue()
+        return codigo, salida.getvalue()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        migraciones, carpeta = Path(tmp) / "migrations", Path(tmp) / "validaciones"
+        migraciones.mkdir()
+        carpeta.mkdir()
+        (migraciones / "20261130000000_usuario.sql").write_text("select 1;", encoding="utf-8")
+        originales = (validaciones.MIGRACIONES, validaciones.CARPETA)
+        validaciones.MIGRACIONES, validaciones.CARPETA = migraciones, carpeta
+        try:
+            codigo, texto = correr_main(validaciones, [])
+            caso("N9 correr-validaciones, sin argumentos, falla con una migración sin validación",
+                 codigo == 1 and "20261130000000_usuario.sql" in texto, f"código {codigo}")
+            (carpeta / "20261130000000_usuario.sql").write_text("select 1;", encoding="utf-8")
+            (carpeta / "20261201000000_huerfana.sql").write_text("select 1;", encoding="utf-8")
+            codigo, texto = correr_main(validaciones, [])
+            caso("N10 correr-validaciones, sin argumentos, falla con una validación sin migración",
+                 codigo == 1 and "20261201000000_huerfana.sql" in texto, f"código {codigo}")
+        finally:
+            validaciones.MIGRACIONES, validaciones.CARPETA = originales
+
+    originales = (comprobar.psql_ok, comprobar.leer_sql, comprobar.COMPROBACION)
+    comprobar.leer_sql = lambda fichero: "select 1;"
+    try:
+        comprobar.psql_ok = lambda sql: RESUMEN_BUENO + "\n"
+        codigo, _ = correr_main(comprobar)
+        caso("P5 comprobar-estructura aprueba una salida sin fallas", codigo == 0, f"código {codigo}")
+        comprobar.psql_ok = lambda sql: "RESUMEN\t3\t0\t0\t0\n"
+        codigo, _ = correr_main(comprobar)
+        caso("N11 comprobar-estructura no aprueba si no recorrió ninguna tabla", codigo == 1, f"código {codigo}")
+        comprobar.psql_ok = lambda sql: "FALLA\tpublic.evas\nora\tsin-organizacion_id\tx\t\n" + RESUMEN_BUENO
+        codigo, _ = correr_main(comprobar)
+        caso("N12 comprobar-estructura no aprueba una falla partida", codigo == 1, f"código {codigo}")
+        comprobar.leer_sql = originales[1]
+        comprobar.COMPROBACION = Path(tempfile.gettempdir()) / f"no-existe-{uuid.uuid4()}.sql"
+        codigo, _ = correr_main(comprobar)
+        caso("N13 comprobar-estructura informa con mensaje propio si falta su SQL",
+             isinstance(codigo, str) and "ERROR: no existe" in codigo, str(codigo))
+    finally:
+        comprobar.psql_ok, comprobar.leer_sql, comprobar.COMPROBACION = originales
 
     malos = resultados.count(False)
     print(f"prueba-scripts-base: {len(resultados) - malos} de {len(resultados)} casos dan lo esperado.")

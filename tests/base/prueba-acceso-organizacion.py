@@ -163,6 +163,17 @@ def main() -> int:
                            f"where id = '{pase_bueno['session_id']}';",
                      usuario="supabase_admin")
         caso("N27 una sesión que pasó su fin fijado no vale", responde(r) == "f", responde(r))
+        r = con_pase("authenticated", pase_bueno, "select public.sesion_abierta();",
+                     antes=f"update auth.sessions set not_after = now() + interval '1 hour' "
+                           f"where id = '{pase_bueno['session_id']}';",
+                     usuario="supabase_admin")
+        caso("P6 una sesión con fin fijado en el futuro sí vale", responde(r) == "t", responde(r))
+        r = con_pase("authenticated", pase_bueno, "select pg_sleep(1.5);\nselect public.sesion_abierta();",
+                     antes=f"update auth.sessions set not_after = clock_timestamp() + interval '1 second' "
+                           f"where id = '{pase_bueno['session_id']}';",
+                     usuario="supabase_admin")
+        caso("N32 la sesión cuyo fin pasa durante la consulta ya no vale (hora del reloj, no de la transacción)",
+             responde(r) == "f", responde(r))
 
         # organizacion por la API: nadie la ve ni la cambia hasta el tramo 3 (D-100).
         # Hoy la API la rechaza antes de llegar a la regla, porque las personas
@@ -235,6 +246,28 @@ def main() -> int:
                      antes=permisiva + "drop policy organizacion_separacion on public.organizacion;\n")
         caso("P5 control: sin la regla restrictiva, el mismo camino sí ve filas",
              responde(r).isdigit() and int(responde(r)) >= 1, f"vio {responde(r)}")
+        # «Siempre no» es para cualquier valor, no solo para los identificadores
+        # de las filas que existen: un valor especial o nulo, y una fila nueva
+        # con el identificador elegido por quien escribe.
+        r = con_pase("authenticated", pase_bueno,
+                     "select public.es_mi_organizacion('00000000-0000-0000-0000-000000000000');")
+        caso("N33 con el identificador nulo de ceros, es_mi_organizacion responde no", responde(r) == "f",
+             responde(r))
+        r = con_pase("authenticated", pase_bueno, "select coalesce(public.es_mi_organizacion(null)::text, 'nulo');")
+        caso("N34 con un valor nulo, es_mi_organizacion no responde sí", responde(r) in ("false", "nulo"),
+             responde(r))
+        r = con_pase("authenticated", pase_bueno,
+                     "insert into public.organizacion (id, nombre, zona_horaria) values "
+                     f"('00000000-0000-0000-0000-000000000000', 'N35 {uuid.uuid4()}', 'UTC');", antes=permisiva)
+        caso("N35 con una regla permisiva, tampoco se crea eligiendo el identificador",
+             r.returncode != 0 and "row-level security" in r.stderr, responde(r))
+        # Y el cuerpo mismo, sin comentarios: en el tramo 2 es solo «SELECT false;».
+        # HU-01.1 (tramo 3) lo cambia, y con él este caso.
+        cuerpo = psql_ok("select prosrc from pg_proc where oid = 'public.es_mi_organizacion(uuid)'::regprocedure;")
+        sentencia = " ".join(linea.strip() for linea in cuerpo.splitlines()
+                             if linea.strip() and not linea.strip().startswith("--"))
+        caso("N36 el cuerpo de es_mi_organizacion es solo «SELECT false;» (D-100)", sentencia == "SELECT false;",
+             f"cuerpo: {sentencia!r}")
 
         # Constraints, por SQL directo, dentro de una transacción que se deshace.
         def inserta(valores: str) -> bool:

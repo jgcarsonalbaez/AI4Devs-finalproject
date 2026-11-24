@@ -135,6 +135,9 @@ CASOS = [
     ("N27 el rol de las personas es superusuario",
      "alter role anon superuser;",
      ("anon", "rol-de-personas-omite-reglas")),
+    ("N29 el rol de las personas puede asumir otro rol que omite las reglas",
+     "create role prueba_puente bypassrls nologin; grant prueba_puente to authenticated;",
+     ("authenticated", "rol-de-personas-omite-reglas")),
     ("N28 un tabulador en el nombre de la tabla no esconde la falla",
      "create table public.\"prueba\tmala\" (id int);",
      ("public.prueba?mala", "sin-organizacion_id")),
@@ -149,7 +152,7 @@ CASOS = [
 ]
 
 
-COMO_SUPERUSUARIO = {"N18", "N19", "N26", "N27"}
+COMO_SUPERUSUARIO = {"N18", "N19", "N26", "N27", "N29"}
 
 
 def correr(nombre: str, preparacion: str):

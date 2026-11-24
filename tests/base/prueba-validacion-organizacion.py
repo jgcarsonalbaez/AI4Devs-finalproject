@@ -123,16 +123,23 @@ FILAS = {
 }
 
 
-def correr(desvio: str):
-    r = psql(f"begin;\n{desvio}\n{VALIDACION.read_text(encoding='utf-8')}\nrollback;\n")
+def correr(desvio: str, validacion: str = ""):
+    """Corre la validación (o el texto `validacion`, si se da) tras el desvío."""
+    sql = validacion or VALIDACION.read_text(encoding="utf-8")
+    r = psql(f"begin;\n{desvio}\n{sql}\nrollback;\n")
     if r.returncode != 0:
-        return None, r.stderr.strip()
-    filas = {}
+        return None, None, r.stderr.strip()
+    # nombres guarda cada fila tal como vino, en orden y con repeticiones: una
+    # fila duplicada o mal formada no puede desaparecer al volverse diccionario.
+    filas, nombres = {}, []
     for linea in r.stdout.splitlines():
         partes = linea.split("\t")
         if len(partes) == 4:
             filas[partes[0]] = partes[3]
-    return filas, None
+            nombres.append(partes[0])
+        else:
+            nombres.append(f"(fila mal formada: {linea!r})")
+    return filas, nombres, None
 
 
 def main() -> int:
@@ -141,7 +148,7 @@ def main() -> int:
         return 1
     malos = 0
     for nombre, desvio, fila in CASOS:
-        filas, error = correr(desvio)
+        filas, nombres, error = correr(desvio)
         if error is not None:
             malos += 1
             print(f"✗ {nombre}: la base rechazó el caso.\n  {error}")
@@ -149,10 +156,12 @@ def main() -> int:
         fallas = sorted(k for k, v in filas.items() if v != "OK")
         if not filas:
             ok, detalle = False, "la validación no devolvió filas"
-        elif set(filas) != FILAS:
+        elif len(nombres) != len(FILAS) or set(nombres) != FILAS:
             ok = False
-            detalle = (f"no da las {len(FILAS)} filas esperadas: faltan {sorted(FILAS - set(filas))}, "
-                       f"sobran {sorted(set(filas) - FILAS)}")
+            repetidas = sorted({n for n in nombres if nombres.count(n) > 1})
+            detalle = (f"no da exactamente las {len(FILAS)} filas esperadas: dio {len(nombres)}; "
+                       f"faltan {sorted(FILAS - set(nombres))}, sobran {sorted(set(nombres) - FILAS)}, "
+                       f"repetidas {repetidas}")
         elif fila is None:
             ok = not fallas
             detalle = "todo OK" if ok else f"fallas inesperadas: {fallas}"
@@ -161,7 +170,19 @@ def main() -> int:
             detalle = f"marca «{fila}»" if ok else f"no marca «{fila}»; marcó {fallas}"
         malos += 0 if ok else 1
         print(f"{'✓' if ok else '✗'} {nombre}: {detalle}")
-    print(f"prueba-validacion-organizacion: {len(CASOS) - malos} de {len(CASOS)} casos dan lo esperado.")
+    # Control de la propia prueba: una validación que repite una fila tiene
+    # 21 filas con los mismos 20 nombres, y la prueba debe notarlo.
+    repetida = VALIDACION.read_text(encoding="utf-8").replace(
+        "from filas order by orden;",
+        "from (select * from filas union all select * from filas where orden = 1) filas order by orden;")
+    _, nombres, error = correr("", repetida)
+    ok = error is None and repetida != VALIDACION.read_text(encoding="utf-8") \
+        and len(nombres) == len(FILAS) + 1 and set(nombres) == FILAS
+    malos += 0 if ok else 1
+    print(f"{'✓' if ok else '✗'} N29 una validación con una fila repetida da 21 filas con 20 nombres, "
+          f"y la cuenta de la prueba lo ve: {len(nombres) if nombres else error}")
+    total = len(CASOS) + 1
+    print(f"prueba-validacion-organizacion: {total - malos} de {total} casos dan lo esperado.")
     return 1 if malos else 0
 
 

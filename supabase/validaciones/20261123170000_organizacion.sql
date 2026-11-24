@@ -13,7 +13,7 @@
 --
 -- Lo que no comprueba: el cuerpo de es_mi_organizacion, que HU-01.1 cambia
 -- en el tramo 3 (D-100). Lo que hace se prueba con datos en
--- tests/base/prueba-acceso-organizacion.py.
+-- tests/base/prueba-acceso-organizacion.py (casos N28 a N31 y su control P5).
 -- ============================================================
 set search_path = pg_catalog;
 

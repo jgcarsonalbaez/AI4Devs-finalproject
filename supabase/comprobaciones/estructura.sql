@@ -4,9 +4,12 @@
 -- organización en la base» (HU-03.CA-1 a CA-3).
 --
 -- Recorre TODAS las tablas de negocio y devuelve una fila por cada falla:
---   FALLA <tab> objeto <tab> motivo <tab> explicación
--- y siempre, al final, una fila RESUMEN con lo que recorrió. Sin filas FALLA,
--- la estructura cumple. La corre scripts/base/comprobar-estructura.py en la
+--   FALLA <tab> objeto <tab> motivo <tab> explicación <tab> (vacío)
+-- y siempre, al final, una fila RESUMEN con lo que recorrió, en números:
+--   RESUMEN <tab> esquemas <tab> tablas <tab> vistas u otros <tab> funciones
+-- Sin filas FALLA, la estructura cumple. En el nombre del objeto, un
+-- tabulador o un salto de línea se escriben «?»: un nombre así no puede
+-- partir la fila y esconder la falla. La corre scripts/base/comprobar-estructura.py en la
 -- integración continua, en cada cambio; su prueba es
 -- tests/base/prueba-comprobacion-estructura.py.
 --
@@ -20,9 +23,10 @@
 --   - Prueba que la regla existe y que está escrita como se pide; que no deje
 --     pasar datos lo prueban los casos con dos organizaciones (HU-03.3).
 --   - «Puede omitir las reglas» cubre BYPASSRLS, superusuario y el privilegio
---     TRUNCATE, que vacía una tabla sin pasar por ellas. No revisa los
---     privilegios TRIGGER y REFERENCES: la migración los quita, pero aquí no
---     se vigilan.
+--     TRUNCATE, que vacía una tabla sin pasar por ellas. TRIGGER y
+--     REFERENCES tienen su propio motivo: no dejan ver filas por sí solos,
+--     pero CLAUDE.md §5 pide que ninguna tabla de negocio los dé a las
+--     personas, y aquí se vigila igual.
 -- ============================================================
 SET search_path = pg_catalog;
 
@@ -122,6 +126,11 @@ fallas(objeto, motivo, explicacion) AS (
          'el rol ' || p.rol || ' puede vaciar la tabla (TRUNCATE no pasa por las reglas)'
   FROM tablas t CROSS JOIN personas p WHERE has_table_privilege(p.rol, t.oid, 'TRUNCATE')
   UNION ALL
+  SELECT t.objeto, 'rol-de-personas-con-trigger-o-references',
+         'el rol ' || p.rol || ' tiene ' || pr.priv || ' sobre la tabla; CLAUDE.md §5 pide quitárselo'
+  FROM tablas t CROSS JOIN personas p CROSS JOIN (VALUES ('TRIGGER'), ('REFERENCES')) pr(priv)
+  WHERE has_table_privilege(p.rol, t.oid, pr.priv)
+  UNION ALL
   SELECT objeto, 'vista-sin-permisos-de-quien-consulta', 'la vista no consulta con los permisos de quien la usa'
   FROM objetos o
   WHERE relkind = 'v'
@@ -139,11 +148,11 @@ fallas(objeto, motivo, explicacion) AS (
          'corre con los privilegios de su dueño y no está en la lista cerrada'
   FROM definer WHERE firma NOT IN (SELECT firma FROM funciones_permitidas)
 )
-SELECT 'FALLA', objeto, motivo, explicacion FROM fallas
+SELECT 'FALLA', translate(objeto, E'\t\n\r', '???'), motivo, explicacion, NULL FROM fallas
 UNION ALL
 SELECT 'RESUMEN',
-       (SELECT count(*) FROM negocio)::text || ' esquemas de negocio',
-       (SELECT count(*) FROM tablas)::text || ' tablas',
-       (SELECT count(*) FROM objetos WHERE relkind <> 'r' AND relkind <> 'p')::text || ' vistas u otros · '
-         || (SELECT count(*) FROM definer)::text || ' funciones con privilegios del dueño'
+       (SELECT count(*) FROM negocio)::text,
+       (SELECT count(*) FROM tablas)::text,
+       (SELECT count(*) FROM objetos WHERE relkind <> 'r' AND relkind <> 'p')::text,
+       (SELECT count(*) FROM definer)::text
 ORDER BY 1, 2, 3;

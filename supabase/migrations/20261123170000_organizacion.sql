@@ -116,13 +116,17 @@ BEGIN
       SECURITY DEFINER
       SET search_path = ''
     AS $fn$
-      -- Abierta: el servicio todavía tiene la sesión que nombra el pase, y es
-      -- de la misma cuenta. Sin pase o sin ese dato, la respuesta es «no».
+      -- Abierta: el servicio todavía tiene la sesión que nombra el pase, es
+      -- de la misma cuenta, no pasó su fin fijado (not_after, si el servicio
+      -- le puso uno) y el pase es de una persona con sesión (rol
+      -- authenticated). Sin pase o sin alguno de esos datos, la respuesta es «no».
       SELECT EXISTS (
         SELECT 1
         FROM auth.sessions s
         WHERE s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
           AND s.user_id = auth.uid()
+          AND (s.not_after IS NULL OR s.not_after > now())
+          AND auth.jwt() ->> 'role' = 'authenticated'
       );
     $fn$;
     REVOKE ALL ON FUNCTION public.sesion_abierta() FROM PUBLIC, anon;

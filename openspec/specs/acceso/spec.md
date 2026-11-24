@@ -1,8 +1,9 @@
 # Especificación · acceso
 
 > **Estado: aprobada por la Dirección el 19/11/2026 (D-89), tras siete rondas de revisión
-> adversarial.** Ticket H-1. Quedan cuatro comprobaciones «por comprobar al construir», cada una con
-> su salida escrita: HU-01.2 (cookie), HU-01.1 (dos, sobre el correo) y HU-03.1 (sesión abierta).
+> adversarial.** Ticket H-1. Quedan tres comprobaciones «por comprobar al construir», cada una con
+> su salida escrita: HU-01.2 (cookie) y HU-01.1 (dos, sobre el correo). La de HU-03.1 (sesión
+> abierta) quedó comprobada el 23/11/2026; el resultado está en su requisito.
 > Cubre las historias HU-01 (entrar con cuenta propia), HU-02 (cada rol ve y hace solo lo suyo) y
 > HU-03 (ninguna organización ve a otra). Cada requisito cita el criterio del backlog del que sale
 > o la decisión de la Dirección que lo origina.
@@ -322,9 +323,11 @@ activo y sesión vigente» (especificación `aviso-inicio`).
 *Comprobado al construir HU-03.1 (23/11/2026), en la base local: la base sí puede consultarlo, y
 la salida alternativa no hace falta. La función `sesion_abierta()` responde sí con la sesión
 abierta y no con el pase de una sesión ya cerrada que todavía no expira
-(`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2). Como lo demás probado en local,
-H-4 lo repite en el servicio gestionado. La regla se apoya en `es_mi_organizacion`, que hasta el
-tramo 3 responde siempre «no» (D-100).*
+(`tests/base/prueba-acceso-organizacion.py`, casos P1, N1 y P2); tampoco con la sesión de otra
+cuenta, sin identificador de sesión, con un pase que dice otro rol ni pasado el fin que el servicio
+le fije a la sesión (casos P4 y N23 a N27). El ticket H-4 del recorte v4 no pide repetir estos casos
+en el servicio gestionado: se agregan a su criterio con los tickets v5 (D-99). La regla se apoya en
+`es_mi_organizacion`, que hasta el tramo 3 responde siempre «no» (D-100; casos N28 a N31 y P5).*
 
 La regla por organización DEBE ser restrictiva: se suma como condición obligatoria a cualquier
 otra, de modo que ninguna regla por rol pueda dejar ver más allá de la organización.

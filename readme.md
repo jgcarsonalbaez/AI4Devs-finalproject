@@ -155,6 +155,7 @@ bash scripts/base/levantar-base.sh
 Lo que corre la integración continua sobre la base, en el mismo orden:
 
 ```bash
+python3 tests/base/prueba-scripts-base.py
 python3 scripts/base/correr-validaciones.py
 python3 scripts/base/comprobar-estructura.py
 python3 tests/base/prueba-comprobacion-estructura.py
@@ -323,11 +324,12 @@ flowchart TB
 | `tests/harness/prueba-instalar-guardarrailes.py` | Que el instalador deja los hooks de git puestos y que funcionan | 52 |
 | `tests/harness/prueba-verificar-referencias.py` | Que el verificador de referencias detecta cada tipo de cita rota: un caso positivo y uno negativo por regla, y un negativo por cada familia de identificador | 64 |
 | `scripts/verificar-referencias.py` | Que toda cita de los documentos vivos resuelve, y que ninguna copia de `docs/trazabilidad/` cambió frente a la base | — |
-| `scripts/base/correr-validaciones.py` | Que cada migración dejó sus objetos hechos como dice la especificación: la validación 1 a 1 de `supabase/validaciones/` | 20 filas |
-| `scripts/base/comprobar-estructura.py` | Que toda tabla de negocio tiene organización y su regla, y que nada se salta las reglas | — |
-| `tests/base/prueba-comprobacion-estructura.py` | Que la comprobación de estructura detecta cada falla: un caso que pasa y uno que falla por regla | 27 |
-| `tests/base/prueba-validacion-organizacion.py` | Que la validación de `organizacion` marca cada desvío de la especificación en su fila | 16 |
-| `tests/base/prueba-acceso-organizacion.py` | Con datos: la base sabe si la sesión del pase sigue abierta; nadie ve ni cambia una organización, por la API ni por SQL con su rol, aunque tenga el permiso; las constraints de la tabla | 20 |
+| `tests/base/prueba-scripts-base.py` | Sin base: qué salida de la comprobación se acepta y cuál no (sin resumen, cero tablas, líneas mal formadas), que cada migración tenga su validación, y que un fichero que falta se informe con mensaje propio | 12 |
+| `scripts/base/correr-validaciones.py` | Que cada migración tiene su validación con el mismo nombre, y que dejó sus objetos hechos como dice la especificación: la validación 1 a 1 de `supabase/validaciones/` | 20 filas |
+| `scripts/base/comprobar-estructura.py` | Que toda tabla de negocio tiene organización y su regla, que nada se salta las reglas y que las personas no tienen `TRUNCATE`, `TRIGGER` ni `REFERENCES`; falla si no recorrió ninguna tabla | — |
+| `tests/base/prueba-comprobacion-estructura.py` | Que la comprobación de estructura detecta cada falla: un caso que pasa y uno que falla por regla, leídos con el mismo analizador que usa la integración continua | 32 |
+| `tests/base/prueba-validacion-organizacion.py` | Que la validación de `organizacion` da sus 20 filas y marca cada desvío de la especificación en su fila: al menos un desvío por fila | 30 |
+| `tests/base/prueba-acceso-organizacion.py` | Con datos: la base sabe si la sesión del pase sigue abierta, y dice no con la sesión de otra cuenta, sin identificador de sesión, con otro rol o pasado su fin; `es_mi_organizacion` responde no, y aun con una regla permisiva que deja todo, la restrictiva no deja ver ni crear; nadie ve ni cambia una organización, por la API ni por SQL con su rol; las constraints de la tabla | 31 |
 
 El paso de pruebas de la aplicación (`pnpm test`) termina en verde sin correr ninguna: el código de la aplicación empieza en el tramo 3 (HU-03.2).
 

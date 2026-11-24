@@ -50,6 +50,16 @@ def psql(sql: str, *, detener_en_error: bool = True, usuario: str = "postgres") 
         sys.exit("ERROR: la base local no respondió en 120 segundos.")
 
 
+def leer_sql(fichero: Path) -> str:
+    """Lee un fichero SQL del repositorio, con nuestro mensaje si no se puede."""
+    try:
+        return fichero.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        sys.exit(f"ERROR: no existe {fichero}; sin él no hay qué comprobar.")
+    except (OSError, UnicodeDecodeError) as e:
+        sys.exit(f"ERROR: no se puede leer {fichero} ({type(e).__name__}: {e}).")
+
+
 def psql_ok(sql: str) -> str:
     """Como psql(), pero detiene la prueba con nuestro mensaje si falla."""
     r = psql(sql)

@@ -7,22 +7,37 @@ Cada validación es de solo lectura y devuelve filas con cuatro columnas:
 objeto · esperado · encontrado · estado (OK o FALLA). Una validación que no
 devuelve ninguna fila también hace fallar: una validación vacía no valida.
 
+Antes de correr nada comprueba que cada migración de supabase/migrations/
+tenga su validación con el mismo nombre, y que no haya validaciones de una
+migración que no existe (CLAUDE.md §5: «cada migración lleva su validación
+1 a 1»). Una migración sin validación hace fallar aunque todo lo demás dé OK.
+
 Uso:  python3 scripts/base/correr-validaciones.py [fichero.sql ...]
-Sin argumentos corre todas, en orden de nombre. Sale con 0 si todo está OK.
+Sin argumentos comprueba la correspondencia y corre todas, en orden de
+nombre. Con argumentos corre solo esas, sin comprobar la correspondencia
+(sirve para mirar una sola). Sale con 0 si todo está OK.
 """
 import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from base_local import psql_ok  # noqa: E402
+from base_local import leer_sql, psql_ok  # noqa: E402
 
+MIGRACIONES = RAIZ / "supabase" / "migrations"
 CARPETA = RAIZ / "supabase" / "validaciones"
+
+
+def sin_pareja(migraciones: list[str], validaciones: list[str]) -> list[str]:
+    """Nombres de fichero sin su pareja, con el motivo. Vacío si todo corresponde."""
+    m, v = set(migraciones), set(validaciones)
+    return ([f"la migración {n} no tiene su validación en supabase/validaciones/{n}" for n in sorted(m - v)]
+            + [f"la validación {n} no corresponde a ninguna migración de supabase/migrations/" for n in sorted(v - m)])
 
 
 def validar(fichero: Path) -> tuple[int, int, list[str]]:
     """Devuelve (filas, fallas, líneas para mostrar) de una validación."""
-    salida = psql_ok(fichero.read_text(encoding="utf-8"))
+    salida = psql_ok(leer_sql(fichero))
     filas = [linea.split("\t") for linea in salida.splitlines() if linea.strip()]
     mostrar, fallas = [], 0
     for fila in filas:
@@ -40,7 +55,16 @@ def validar(fichero: Path) -> tuple[int, int, list[str]]:
 
 
 def main(argumentos: list[str]) -> int:
-    ficheros = [Path(a) for a in argumentos] or sorted(CARPETA.glob("*.sql"))
+    if argumentos:
+        ficheros = [Path(a) for a in argumentos]
+    else:
+        huerfanos = sin_pareja([f.name for f in MIGRACIONES.glob("*.sql")],
+                               [f.name for f in CARPETA.glob("*.sql")])
+        if huerfanos:
+            print("\n".join(f"  ✗ {h}" for h in huerfanos))
+            print(f"correr-validaciones: {len(huerfanos)} ficheros sin su pareja; no se valida nada.")
+            return 1
+        ficheros = sorted(CARPETA.glob("*.sql"))
     if not ficheros:
         print(f"ERROR: no hay validaciones en {CARPETA.relative_to(RAIZ)}.")
         return 1

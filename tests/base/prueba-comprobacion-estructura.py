@@ -138,6 +138,16 @@ CASOS = [
     ("N29 el rol de las personas puede asumir otro rol que omite las reglas",
      "create role prueba_puente bypassrls nologin; grant prueba_puente to authenticated;",
      ("authenticated", "rol-de-personas-omite-reglas")),
+    # Revisión del tramo 2, ronda 3: la cadena de dos saltos debe verse, y nombrar
+    # el rol del final; una pertenencia que no deja asumir el rol (WITH SET FALSE)
+    # no da sus atributos, así que no es falla.
+    ("N30 el rol de las personas llega en dos saltos a un rol que omite las reglas",
+     "create role prueba_medio nologin; create role prueba_final bypassrls nologin;"
+     "grant prueba_final to prueba_medio; grant prueba_medio to authenticated;",
+     ("authenticated", "rol-de-personas-omite-reglas", "prueba_final")),
+    ("P5 una pertenencia que no deja asumir el rol no es falla",
+     "create role prueba_sin_set bypassrls nologin; grant prueba_sin_set to authenticated with set false;",
+     None),
     ("N28 un tabulador en el nombre de la tabla no esconde la falla",
      "create table public.\"prueba\tmala\" (id int);",
      ("public.prueba?mala", "sin-organizacion_id")),
@@ -152,7 +162,7 @@ CASOS = [
 ]
 
 
-COMO_SUPERUSUARIO = {"N18", "N19", "N26", "N27", "N29"}
+COMO_SUPERUSUARIO = {"N18", "N19", "N26", "N27", "N29", "N30", "P5"}
 
 
 def correr(nombre: str, preparacion: str):
@@ -163,7 +173,13 @@ def correr(nombre: str, preparacion: str):
     if r.returncode != 0:
         return None, None, r.stderr.strip()
     fallas, _, errores = comprobar.analizar(r.stdout)
-    return {(f[0], f[1]) for f in fallas}, errores, None
+    return [tuple(f) for f in fallas], errores, None
+
+
+def detecta(esperado: tuple, fallas: list) -> bool:
+    """(objeto, motivo) o (objeto, motivo, texto que la explicación debe nombrar)."""
+    return any(f[0] == esperado[0] and f[1] == esperado[1]
+               and (len(esperado) < 3 or esperado[2] in f[2]) for f in fallas)
 
 
 def main() -> int:
@@ -185,7 +201,7 @@ def main() -> int:
             ok = not fallas
             detalle = "sin fallas" if ok else f"fallas inesperadas: {sorted(fallas)}"
         else:
-            ok = esperado in fallas
+            ok = detecta(esperado, fallas)
             detalle = f"detecta {esperado}" if ok else f"no detecta {esperado}; dio {sorted(fallas)}"
         malos += 0 if ok else 1
         print(f"{'✓' if ok else '✗'} {nombre}: {detalle}")

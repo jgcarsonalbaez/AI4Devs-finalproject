@@ -142,6 +142,28 @@ def correr(desvio: str, validacion: str = ""):
     return filas, nombres, None
 
 
+def decidir(filas: dict, nombres: list, fila) -> tuple:
+    """La única decisión de la prueba: ¿la salida de la validación es la esperada?
+
+    `fila` es None si todo debe dar OK, o el nombre de la fila que debe dar FALLA.
+    Devuelve (ok, detalle). La usan los casos y el control N29, para que el
+    control pruebe esta misma decisión y no una copia.
+    """
+    fallas = sorted(k for k, v in filas.items() if v != "OK")
+    if not filas:
+        return False, "la validación no devolvió filas"
+    if len(nombres) != len(FILAS) or set(nombres) != FILAS:
+        repetidas = sorted({n for n in nombres if nombres.count(n) > 1})
+        return False, (f"no da exactamente las {len(FILAS)} filas esperadas: dio {len(nombres)}; "
+                       f"faltan {sorted(FILAS - set(nombres))}, sobran {sorted(set(nombres) - FILAS)}, "
+                       f"repetidas {repetidas}")
+    if fila is None:
+        return (not fallas), ("todo OK" if not fallas else f"fallas inesperadas: {fallas}")
+    if filas.get(fila) == "FALLA":
+        return True, f"marca «{fila}»"
+    return False, f"no marca «{fila}»; marcó {fallas}"
+
+
 def main() -> int:
     if not VALIDACION.is_file():
         print(f"FALLA: no existe {VALIDACION.relative_to(RAIZ)}.")
@@ -153,34 +175,25 @@ def main() -> int:
             malos += 1
             print(f"✗ {nombre}: la base rechazó el caso.\n  {error}")
             continue
-        fallas = sorted(k for k, v in filas.items() if v != "OK")
-        if not filas:
-            ok, detalle = False, "la validación no devolvió filas"
-        elif len(nombres) != len(FILAS) or set(nombres) != FILAS:
-            ok = False
-            repetidas = sorted({n for n in nombres if nombres.count(n) > 1})
-            detalle = (f"no da exactamente las {len(FILAS)} filas esperadas: dio {len(nombres)}; "
-                       f"faltan {sorted(FILAS - set(nombres))}, sobran {sorted(set(nombres) - FILAS)}, "
-                       f"repetidas {repetidas}")
-        elif fila is None:
-            ok = not fallas
-            detalle = "todo OK" if ok else f"fallas inesperadas: {fallas}"
-        else:
-            ok = filas.get(fila) == "FALLA"
-            detalle = f"marca «{fila}»" if ok else f"no marca «{fila}»; marcó {fallas}"
+        ok, detalle = decidir(filas, nombres, fila)
         malos += 0 if ok else 1
         print(f"{'✓' if ok else '✗'} {nombre}: {detalle}")
-    # Control de la propia prueba: una validación que repite una fila tiene
-    # 21 filas con los mismos 20 nombres, y la prueba debe notarlo.
-    repetida = VALIDACION.read_text(encoding="utf-8").replace(
+    # Control de la propia prueba: una validación que repite una fila (todas
+    # sus filas OK, 21 filas con los mismos 20 nombres) debe ser RECHAZADA por
+    # la misma decisión que juzga los casos (revisión del tramo 2, ronda 3).
+    original = VALIDACION.read_text(encoding="utf-8")
+    repetida = original.replace(
         "from filas order by orden;",
         "from (select * from filas union all select * from filas where orden = 1) filas order by orden;")
-    _, nombres, error = correr("", repetida)
-    ok = error is None and repetida != VALIDACION.read_text(encoding="utf-8") \
-        and len(nombres) == len(FILAS) + 1 and set(nombres) == FILAS
+    filas, nombres, error = correr("", repetida)
+    if error is not None or repetida == original:
+        ok, detalle = False, error or "no se pudo fabricar la validación repetida"
+    else:
+        aprobada, detalle = decidir(filas, nombres, None)
+        ok = not aprobada and len(nombres) == len(FILAS) + 1 and "repetidas" in detalle
     malos += 0 if ok else 1
-    print(f"{'✓' if ok else '✗'} N29 una validación con una fila repetida da 21 filas con 20 nombres, "
-          f"y la cuenta de la prueba lo ve: {len(nombres) if nombres else error}")
+    print(f"{'✓' if ok else '✗'} N29 una validación con una fila repetida es rechazada por la decisión "
+          f"de la prueba: {detalle}")
     total = len(CASOS) + 1
     print(f"prueba-validacion-organizacion: {total - malos} de {total} casos dan lo esperado.")
     return 1 if malos else 0

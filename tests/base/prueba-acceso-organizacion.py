@@ -26,6 +26,7 @@ Sale con 0 si todos los casos dan lo esperado, y con 1 si alguno falla.
 """
 import base64
 import json
+import re
 import subprocess
 import sys
 import urllib.error
@@ -172,8 +173,19 @@ def main() -> int:
                      antes=f"update auth.sessions set not_after = clock_timestamp() + interval '1 second' "
                            f"where id = '{pase_bueno['session_id']}';",
                      usuario="supabase_admin")
-        caso("N32 la sesión cuyo fin pasa durante la consulta ya no vale (hora del reloj, no de la transacción)",
-             responde(r) == "f", responde(r))
+        caso("N32 la sesión cuyo fin pasa entre dos consultas de la misma transacción ya no vale en la segunda "
+             "(hora de inicio de cada consulta, no de la transacción)", responde(r) == "f", responde(r))
+        # Riesgo aceptado (D-102): la función mira la hora en que EMPEZÓ la
+        # consulta, como corresponde a una función declarada STABLE. Una sola
+        # consulta que empezó antes del fin conserva su respuesta hasta terminar.
+        # Este caso lo deja escrito: si cambia, cambió la garantía declarada.
+        r = con_pase("authenticated", pase_bueno,
+                     "select public.sesion_abierta() from (select pg_sleep(1.5)) espera;",
+                     antes=f"update auth.sessions set not_after = clock_timestamp() + interval '1 second' "
+                           f"where id = '{pase_bueno['session_id']}';",
+                     usuario="supabase_admin")
+        caso("P7 una consulta que empezó antes del fin conserva su respuesta hasta terminar (riesgo aceptado, "
+             "D-102)", responde(r) == "t", responde(r))
 
         # organizacion por la API: nadie la ve ni la cambia hasta el tramo 3 (D-100).
         # Hoy la API la rechaza antes de llegar a la regla, porque las personas
@@ -254,7 +266,9 @@ def main() -> int:
         caso("N33 con el identificador nulo de ceros, es_mi_organizacion responde no", responde(r) == "f",
              responde(r))
         r = con_pase("authenticated", pase_bueno, "select coalesce(public.es_mi_organizacion(null)::text, 'nulo');")
-        caso("N34 con un valor nulo, es_mi_organizacion no responde sí", responde(r) in ("false", "nulo"),
+        # Exactamente «no», no un nulo: una función marcada STRICT conserva el
+        # cuerpo «SELECT false;» pero ante un nulo responde nulo sin ejecutarlo.
+        caso("N34 con un valor nulo, es_mi_organizacion responde no (no nulo)", responde(r) == "false",
              responde(r))
         r = con_pase("authenticated", pase_bueno,
                      "insert into public.organizacion (id, nombre, zona_horaria) values "
@@ -263,9 +277,19 @@ def main() -> int:
              r.returncode != 0 and "row-level security" in r.stderr, responde(r))
         # Y el cuerpo mismo, sin comentarios: en el tramo 2 es solo «SELECT false;».
         # HU-01.1 (tramo 3) lo cambia, y con él este caso.
+        # Se quitan los comentarios de línea («--» hasta el fin de la línea, también
+        # al final de una sentencia) y los de bloque («/* … */»), y se normalizan
+        # los espacios. P8 es el control del normalizador, sin base.
+        def sin_comentarios(texto: str) -> str:
+            texto = re.sub(r"/\*.*?\*/", " ", texto, flags=re.DOTALL)
+            texto = re.sub(r"--[^\n]*", " ", texto)
+            return " ".join(texto.split())
+
+        muestra = "-- D-100\n  SELECT /* bloque\n de dos líneas */ false; -- al final\n"
+        caso("P8 control: el normalizador quita comentarios de línea, al final y de bloque",
+             sin_comentarios(muestra) == "SELECT false;", repr(sin_comentarios(muestra)))
         cuerpo = psql_ok("select prosrc from pg_proc where oid = 'public.es_mi_organizacion(uuid)'::regprocedure;")
-        sentencia = " ".join(linea.strip() for linea in cuerpo.splitlines()
-                             if linea.strip() and not linea.strip().startswith("--"))
+        sentencia = sin_comentarios(cuerpo)
         caso("N36 el cuerpo de es_mi_organizacion es solo «SELECT false;» (D-100)", sentencia == "SELECT false;",
              f"cuerpo: {sentencia!r}")
 

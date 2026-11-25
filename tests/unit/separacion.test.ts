@@ -132,6 +132,28 @@ describe("buscarPorId: lo ajeno responde igual que lo que no existe (D-67)", () 
     );
   });
 
+  it("N11 el mensaje de error es fijo: no muestra el texto del motor, que queda como causa", async () => {
+    const interno = 'relation "usuario" does not exist';
+    const { cliente } = clienteFalso({ data: null, error: { message: interno } });
+    const error = await buscarPorId(cliente, yo, "usuario", FILA).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(error?.message).toBe("No se pudo consultar usuario. Inténtalo de nuevo en unos minutos.");
+    expect(error?.message).not.toContain(interno);
+    expect(String((error as Error & { cause?: unknown })?.cause)).toContain(interno);
+  });
+
+  it("P6 el mismo identificador de organización en mayúsculas sigue siendo propio", async () => {
+    // Con letras: un identificador solo de dígitos no cambia al pasarlo a mayúsculas.
+    const ORG_C = "abcdefab-cdef-4abc-8def-abcdefabcdef";
+    const fila = { id: FILA, organizacion_id: ORG_C, nombre: "Ana" };
+    const { cliente, anotado } = clienteFalso({ data: fila, error: null });
+    const r = await buscarPorId(cliente, { ...yo, organizacionId: ORG_C.toUpperCase() }, "usuario", FILA);
+    expect(r).toEqual({ estado: "encontrado", dato: fila });
+    expect(anotado.filtros[0]).toEqual(["organizacion_id", ORG_C]);
+  });
+
   it("P4 la propia organización se recibe por su id", async () => {
     const org = { id: ORG_A, nombre: "Organización A" };
     const r = await buscarPorId(clienteFalso({ data: org, error: null }).cliente, yo, "organizacion", ORG_A);
@@ -149,9 +171,12 @@ describe("en un solo lugar: el código no consulta tablas por fuera del módulo 
   const RAIZ = join(__dirname, "..", "..");
   const MODULO = join("lib", "datos", "separacion.ts");
 
+  const NO_SE_RECORREN = new Set(["node_modules", ".next", ".git", "tests"]);
+
   function archivos(dir: string): string[] {
     let salida: string[] = [];
     for (const nombre of readdirSync(dir)) {
+      if (NO_SE_RECORREN.has(nombre)) continue;
       const ruta = join(dir, nombre);
       if (statSync(ruta).isDirectory()) salida = salida.concat(archivos(ruta));
       else if (/\.(ts|tsx|js|jsx|mjs)$/.test(nombre)) salida.push(ruta);
@@ -159,16 +184,10 @@ describe("en un solo lugar: el código no consulta tablas por fuera del módulo 
     return salida;
   }
 
-  it("P5 ningún archivo de app/ ni de lib/ fuera del módulo llama a .from()", () => {
-    const carpetas = ["app", "lib"].map((c) => join(RAIZ, c)).filter((c) => {
-      try {
-        return statSync(c).isDirectory();
-      } catch {
-        return false;
-      }
-    });
-    const fuera = carpetas
-      .flatMap(archivos)
+  it("P5 ningún archivo de código del repositorio, fuera del módulo, consulta tablas ni funciones", () => {
+    // Todo el repositorio, no solo app/ y lib/ (revisión del tramo 3, ronda 1).
+    // Fuera: dependencias, compilados, git y las pruebas, que usan clientes falsos.
+    const fuera = archivos(RAIZ)
       .filter((ruta) => relative(RAIZ, ruta) !== MODULO)
       .filter((ruta) => usosDirectos(readFileSync(ruta, "utf8")) > 0)
       .map((ruta) => relative(RAIZ, ruta));
@@ -179,5 +198,17 @@ describe("en un solo lugar: el código no consulta tablas por fuera del módulo 
     expect(usosDirectos('const r = await supabase.from("usuario").select();')).toBe(1);
     expect(usosDirectos("db\n  .from ( 'aviso_inicio' )")).toBe(1);
     expect(usosDirectos("Array.from(lista); // no es una consulta")).toBe(0);
+  });
+
+  it("N10 control: también la ve con la tabla en una variable, por corchetes o como función (rpc)", () => {
+    expect(usosDirectos("const tabla = 'usuario'; supabase.from(tabla).select();")).toBe(1);
+    expect(usosDirectos('supabase["from"]("usuario").select();')).toBe(1);
+    expect(usosDirectos("supabase['rpc']('registrar_aviso', {});")).toBe(1);
+    expect(usosDirectos("await supabase.rpc(nombre, datos);")).toBe(1);
+  });
+
+  it("P7 control: no confunde con consultas lo que no lo es", () => {
+    expect(usosDirectos("Buffer.from(texto); Uint8Array.from(bytes); Array.from(conjunto);")).toBe(0);
+    expect(usosDirectos("import { x } from './y';")).toBe(0);
   });
 });

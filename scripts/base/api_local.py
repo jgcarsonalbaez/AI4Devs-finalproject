@@ -60,6 +60,13 @@ def api(metodo: str, ruta: str, cuerpo=None, pase=None, clave=None, cabeceras=No
             return resp.status, (json.loads(texto) if texto else None)
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()
+    # Revisión del tramo 3, ronda 1: también los fallos de transporte y de
+    # lectura llevan mensaje nuestro, no el rastro de urllib.
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+        sys.exit(f"ERROR: la API local no respondió en {ENV['API_URL']} ({metodo} {ruta}): {e}. "
+                 "¿Está levantada la base local (scripts/base/levantar-base.sh)?")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        sys.exit(f"ERROR: la API local respondió algo que no es JSON a {metodo} {ruta}: {e}.")
 
 
 def como_sistema(metodo: str, ruta: str, cuerpo=None):
@@ -67,11 +74,16 @@ def como_sistema(metodo: str, ruta: str, cuerpo=None):
     return api(metodo, ruta, cuerpo, pase=ENV["SERVICE_ROLE_KEY"], clave=ENV["SERVICE_ROLE_KEY"])
 
 
-def entrar(correo: str, clave: str) -> str:
+def entrar_completo(correo: str, clave: str) -> dict:
+    """Entra con contraseña y devuelve la respuesta entera del servicio (pase y pase de renovación)."""
     codigo, cuerpo = api("POST", "/auth/v1/token?grant_type=password", {"email": correo, "password": clave})
     if codigo != 200:
         sys.exit(f"ERROR: la cuenta de prueba no pudo entrar ({codigo}): {cuerpo}")
-    return cuerpo["access_token"]
+    return cuerpo
+
+
+def entrar(correo: str, clave: str) -> str:
+    return entrar_completo(correo, clave)["access_token"]
 
 
 def crear_cuenta() -> tuple[str, str, str]:

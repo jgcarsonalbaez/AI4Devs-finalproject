@@ -35,7 +35,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "scripts" / "base"))
 from base_local import psql, psql_ok  # noqa: E402
-from api_local import (api, como_sistema, con_pase, contenido, crear_cuenta, entrar,  # noqa: E402
+from api_local import (api, como_sistema, con_pase, contenido, crear_cuenta, entrar, entrar_completo,  # noqa: E402
                        quitar_cuenta, responde)
 
 MENSAJE_D103 = "El correo de la cuenta no se cambia"
@@ -70,7 +70,8 @@ def main() -> int:
             print(f"✗ preparación: no se pudieron crear los usuarios de prueba: {primera_linea(alta.stderr)}")
             print("prueba-usuario: 0 casos corridos; la preparación falló.")
             return 1
-        pase_1 = entrar(correo_1, clave_1)
+        sesion_1 = entrar_completo(correo_1, clave_1)
+        pase_1 = sesion_1["access_token"]
         pase_1_cerrada = entrar(correo_1, clave_1)
         pase_3 = entrar(correo_3, clave_3)
 
@@ -141,6 +142,27 @@ def main() -> int:
         fila = psql_ok(f"select email from auth.users where id = '{id_3}';").strip()
         caso("P3 control: la credencial del sistema sí cambia el correo de una cuenta (D-87, D-103)",
              c == 200 and fila == nuevo_3, f"respondió {c}; la cuenta quedó en {fila!r}")
+        # Revisión del tramo 3, ronda 1: una solicitud que ya estaba pendiente
+        # (anterior al bloqueo) tampoco se puede confirmar. Se fabrica con el
+        # bloqueo apagado y se confirma como lo haría el servicio.
+        r = psql(f"begin;\nalter table auth.users disable trigger impedir_cambio_de_correo_propio;\n"
+                 f"update auth.users set email_change = 'pendiente-{uuid.uuid4()}@example.com' where id = '{id_1}';\n"
+                 f"alter table auth.users enable trigger impedir_cambio_de_correo_propio;\n"
+                 f"update auth.users set email = email_change, email_change = '' where id = '{id_1}';\nrollback;\n",
+                 usuario="supabase_admin")
+        caso("N24 una solicitud pendiente de antes del bloqueo no se puede confirmar",
+             r.returncode != 0 and MENSAJE_D103 in r.stderr, primera_linea(r.stderr) or "se aceptó")
+        # La corrección excepcional, completa (revisión del tramo 3, ronda 1): la
+        # credencial del sistema cambia el correo de la cuenta y el rol de las
+        # migraciones reescribe el usuario, que es el único que puede leer las cuentas.
+        nuevo_2 = f"corregido-{uuid.uuid4()}@example.com"
+        c, _ = como_sistema("PUT", f"/auth/v1/admin/users/{id_2}", {"email": nuevo_2})
+        r = psql(f"begin; update public.usuario set correo = '{nuevo_2}' where id = '{id_2}' returning correo; rollback;")
+        caso("P10 corrección de un error de captura en dos pasos: cuenta y usuario quedan con el correo nuevo",
+             c == 200 and r.returncode == 0 and nuevo_2 in r.stdout, f"respondió {c}; {primera_linea(r.stderr) or 'reescrito'}")
+        r = psql(f"begin; update public.usuario set telefono = '+507 6000-0009' where id = '{id_2}'; rollback;")
+        caso("N25 sin reescribir el correo, el usuario de la cuenta corregida no se puede escribir",
+             r.returncode != 0 and "no es el de la cuenta" in r.stderr, primera_linea(r.stderr) or "se aceptó")
 
         # ---- es_mi_organizacion(uuid), con el pase de la persona.
         bueno = contenido(pase_1)
@@ -187,6 +209,37 @@ def main() -> int:
         caso("N19 con un valor nulo responde no (no nulo)", d == "false", d)
         d = mia({"role": "anon"}, org_a, rol="anon")
         caso("N20 sin sesión responde no", d == "f", d)
+
+        # Revisión del tramo 3, ronda 1. El plazo se compara en una función aparte,
+        # para poder probar el instante exacto; y se cuenta en horas absolutas, sin
+        # depender de la zona horaria de la sesión de la base.
+        def plazo(entrada: str, dias: int, ahora: str) -> str:
+            return responde(psql(f"select public.dentro_del_plazo(timestamptz '{entrada}', {dias}, "
+                                 f"timestamptz '{ahora}');"))
+
+        d = plazo("2026-10-26 12:00:00+00", 30, "2026-11-25 12:00:00+00")
+        caso("P11 exactamente en el plazo, todavía vale", d == "t", d)
+        d = plazo("2026-10-26 12:00:00+00", 30, "2026-11-25 12:00:00.000001+00")
+        caso("N26 un instante después del plazo, ya no vale", d == "f", d)
+        d = mia(entrada_hace(720 * 3600 + 1800), org_a, antes="set local timezone to 'America/New_York';")
+        caso("N27 en una zona con cambio de horario, 30 días son 720 horas: 720 h y media ya vencen", d == "f", d)
+        ahora = int(time.time())
+        varias = {**bueno, "amr": [{"method": "password", "timestamp": ahora - 31 * DIA},
+                                   {"method": "password", "timestamp": ahora}]}
+        d = mia(varias, org_a)
+        caso("N28 con dos entradas con contraseña, vale la más antigua: si venció, responde no", d == "f", d)
+        varias = {**bueno, "amr": [{"method": "password", "timestamp": ahora},
+                                   {"method": "password", "timestamp": "no-es-un-numero"},
+                                   {"method": "password", "timestamp": ahora - 3600}]}
+        d = mia(varias, org_a)
+        caso("P12 con varias entradas vigentes y una mal formada, responde sí", d == "t", d)
+        # El bloqueo de D-103 no estorba al servicio: la sesión se renueva y el
+        # pase nuevo conserva el momento de entrada.
+        c, renovado = api("POST", "/auth/v1/token?grant_type=refresh_token",
+                          {"refresh_token": sesion_1["refresh_token"]})
+        conserva = c == 200 and contenido(renovado["access_token"]).get("amr") == bueno.get("amr")
+        caso("P13 con el bloqueo instalado, la sesión se renueva y conserva su momento de entrada", conserva,
+             f"respondió {c}")
 
         # ---- Las reglas de separación, con dos organizaciones. Se da el permiso
         # de leer y una regla permisiva que deja todo, dentro de una transacción

@@ -164,6 +164,24 @@ filas(orden, objeto, esperado, encontrado) as (
                       where has_table_privilege(r.rol, 'public.usuario', p.priv)), 'ninguno'),
                    ' · ' order by r.rol)
             from (values ('anon'), ('authenticated')) r(rol)) end
+  union all
+  select 25, 'función public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)',
+         'boolean · stable · invoker · search_path=""',
+         coalesce((select devuelve || ' · ' || volatilidad || ' · ' || privilegios || ' · ' || config
+                   from fn where firma = 'public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)'),
+                  '(no existe)')
+  union all
+  -- es_mi_organizacion lee usuario, cuya regla la vuelve a llamar: sin un dueño
+  -- que omita las reglas entraría en recursión (revisión del tramo 3, ronda 1).
+  select 26, 'dueño de las funciones con privilegios de su dueño',
+         'es_mi_organizacion: omite las reglas · sesion_abierta: omite las reglas',
+         coalesce((select string_agg(x.nombre || ': ' || case when r.rolsuper or r.rolbypassrls then 'omite las reglas'
+                                                         else 'no las omite (' || r.rolname || ')' end,
+                                     ' · ' order by x.nombre)
+                   from (values ('es_mi_organizacion', 'public.es_mi_organizacion(uuid)'),
+                                ('sesion_abierta', 'public.sesion_abierta()')) x(nombre, firma)
+                   join pg_proc p on p.oid = to_regprocedure(x.firma)
+                   join pg_roles r on r.oid = p.proowner), '(no existen)')
 )
 select objeto, esperado, encontrado,
        case when esperado = encontrado then 'OK' else 'FALLA' end as estado

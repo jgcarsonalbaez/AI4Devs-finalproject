@@ -23,6 +23,8 @@
 --   4. public.impedir_cambio_de_correo_propio() y su disparador en
 --      auth.users (D-103): la solicitud de cambio de correo que hace la
 --      persona se rechaza; el cambio que hace la credencial del sistema pasa.
+--   5a. public.dentro_del_plazo(entrada, dias, ahora): el plazo de la sesión,
+--      contado en horas.
 --   5. Cuerpo nuevo de public.es_mi_organizacion(uuid): sí solo para la
 --      organización de un usuario activo, con la sesión del pase abierta y sin
 --      pasar sesion_dias desde que entró con contraseña.
@@ -39,6 +41,9 @@
 --     gestionado se comprueba en H-4 (D-103).
 --   - Con solo la regla restrictiva y ninguna permisiva, las personas no ven
 --     ni cambian usuarios. Las reglas por rol las pone HU-02.1.
+--   - es_mi_organizacion lee usuario, cuya regla vuelve a llamarla: no entra en
+--     recursión porque su dueño (el rol de las migraciones) omite las reglas.
+--     La validación 1 a 1 lo comprueba (revisión del tramo 3, ronda 1).
 -- ============================================================
 
 
@@ -170,7 +175,14 @@ BEGIN
       SET search_path = ''
     AS $fn$
     BEGIN
+      -- La persona pide el cambio: el servicio anota el correo pedido.
       IF coalesce(NEW.email_change, '') <> '' AND NEW.email_change IS DISTINCT FROM OLD.email_change THEN
+        RAISE EXCEPTION 'El correo de la cuenta no se cambia: un correo nuevo es un usuario nuevo (D-103).';
+      END IF;
+      -- La confirmación de una solicitud que ya estaba pendiente (por ejemplo,
+      -- anterior a este bloqueo): el correo pasa a ser el pedido.
+      IF NEW.email IS DISTINCT FROM OLD.email AND coalesce(OLD.email_change, '') <> ''
+         AND lower(NEW.email) = lower(OLD.email_change) THEN
         RAISE EXCEPTION 'El correo de la cuenta no se cambia: un correo nuevo es un usuario nuevo (D-103).';
       END IF;
       RETURN NEW;
@@ -201,6 +213,39 @@ $bloque$;
 
 
 -- ------------------------------------------------------------
+-- 5a. public.dentro_del_plazo(entrada, dias, ahora) — recreable. Sí si no
+--     pasaron más de `dias` días desde la entrada; exactamente en el plazo,
+--     todavía vale. El plazo se cuenta en horas (24 por día): un intervalo en
+--     días dependería de la zona horaria de la sesión de la base, y un día con
+--     cambio de horario duraría 23 o 25 horas (revisión del tramo 3, ronda 1).
+--     Aparte, para poder probar el instante exacto.
+-- ------------------------------------------------------------
+DO $bloque$
+BEGIN
+  BEGIN
+    CREATE OR REPLACE FUNCTION public.dentro_del_plazo(entrada timestamptz, dias integer, ahora timestamptz)
+      RETURNS boolean
+      LANGUAGE sql
+      STABLE
+      SET search_path = ''
+    AS $fn$
+      SELECT entrada + make_interval(hours => dias * 24) >= ahora;
+    $fn$;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'ERROR: no se pudo crear public.dentro_del_plazo. Motivo del motor: % (código %).',
+      SQLERRM, SQLSTATE;
+  END;
+
+  IF to_regprocedure('public.dentro_del_plazo(timestamptz, integer, timestamptz)') IS NOT NULL THEN
+    RAISE NOTICE 'OK: función public.dentro_del_plazo creada exitosamente.';
+  ELSE
+    RAISE EXCEPTION 'ERROR: la creación de public.dentro_del_plazo no dio error, pero la función no existe.';
+  END IF;
+END
+$bloque$;
+
+
+-- ------------------------------------------------------------
 -- 5. public.es_mi_organizacion(uuid) — cuerpo de HU-01.1 (cierra D-100).
 --    Mismas propiedades que en el tramo 2: STABLE, privilegios de su dueño
 --    (lee usuario y organizacion, que las personas no ven), search_path vacío,
@@ -221,8 +266,9 @@ BEGIN
       -- más de sesion_dias días desde que entró con contraseña. El momento de
       -- entrada es el que el servicio anota en el pase (amr, método password);
       -- si no está o tiene otra forma, la respuesta es «no»: ante la duda, la
-      -- sesión vence. La hora es la del inicio de la consulta, como en
-      -- sesion_abierta() (D-102). Exactamente en el plazo, todavía vale.
+      -- sesión vence. Con varias entradas con contraseña, vale la más antigua,
+      -- por la misma razón. La hora es la del inicio de la consulta, como en
+      -- sesion_abierta() (D-102). El plazo lo decide dentro_del_plazo().
       SELECT EXISTS (
         SELECT 1
         FROM public.usuario u
@@ -231,15 +277,18 @@ BEGIN
           AND u.organizacion_id = organizacion
           AND u.activo
           AND public.sesion_abierta()
-          AND to_timestamp((
-                SELECT min((a ->> 'timestamp')::bigint)
-                FROM jsonb_array_elements(
-                       CASE WHEN jsonb_typeof(auth.jwt() -> 'amr') = 'array'
-                            THEN auth.jwt() -> 'amr' ELSE '[]'::jsonb END) a
-                WHERE jsonb_typeof(a) = 'object'
-                  AND a ->> 'method' = 'password'
-                  AND (a ->> 'timestamp') ~ '^[0-9]{1,12}$'
-              )) + make_interval(days => o.sesion_dias) >= statement_timestamp()
+          AND public.dentro_del_plazo(
+                to_timestamp((
+                  SELECT min((a ->> 'timestamp')::bigint)
+                  FROM jsonb_array_elements(
+                         CASE WHEN jsonb_typeof(auth.jwt() -> 'amr') = 'array'
+                              THEN auth.jwt() -> 'amr' ELSE '[]'::jsonb END) a
+                  WHERE jsonb_typeof(a) = 'object'
+                    AND a ->> 'method' = 'password'
+                    AND (a ->> 'timestamp') ~ '^[0-9]{1,12}$'
+                )),
+                o.sesion_dias,
+                statement_timestamp())
       );
     $fn$;
   EXCEPTION WHEN OTHERS THEN

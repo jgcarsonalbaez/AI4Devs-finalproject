@@ -67,7 +67,12 @@ export function consultar<Q extends Filtrable<Q>>(
   if (!IDENTIFICADOR.test(identidad?.organizacionId ?? "")) {
     throw new Error("No se consulta sin la organización de quien pregunta.");
   }
-  return cliente.from(tabla).select(columnas).eq(columnaDeOrganizacion(tabla), identidad.organizacionId);
+  return cliente.from(tabla).select(columnas).eq(columnaDeOrganizacion(tabla), organizacionDe(identidad));
+}
+
+/** La organización de quien pregunta, en la forma en que la base escribe los identificadores (minúsculas). */
+function organizacionDe(identidad: Identidad): string {
+  return identidad.organizacionId.toLowerCase();
 }
 
 /**
@@ -84,18 +89,35 @@ export async function buscarPorId<T extends Record<string, unknown>, Q extends F
   if (!IDENTIFICADOR.test(id ?? "")) return NO_EXISTE;
   const { data, error } = await consultar(cliente, identidad, tabla).eq("id", id).maybeSingle();
   if (error) {
-    throw new Error(`No se pudo consultar ${tabla}: ${error.message}`);
+    // El mensaje es fijo; el del motor queda como causa, para el registro
+    // interno, y no llega a quien pregunta (revisión del tramo 3, ronda 1).
+    throw new Error(`No se pudo consultar ${tabla}. Inténtalo de nuevo en unos minutos.`, { cause: error.message });
   }
   const fila = data as T | null;
-  if (!fila || fila[columnaDeOrganizacion(tabla)] !== identidad.organizacionId) return NO_EXISTE;
+  const deFila = String(fila?.[columnaDeOrganizacion(tabla)] ?? "").toLowerCase();
+  if (!fila || deFila !== organizacionDe(identidad)) return NO_EXISTE;
   return { estado: "encontrado", dato: fila };
 }
 
+/** Lo que no es una consulta aunque se escriba `X.from(...)`. */
+const NO_SON_CONSULTAS = new Set([
+  "Array", "Buffer", "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",
+  "Int32Array", "Uint32Array", "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array",
+]);
+
 /**
- * Cuántas consultas directas a una tabla (`.from(...)` sobre un cliente) hay en
- * un texto de código. `Array.from(...)` no cuenta. Lo usa la prueba que vigila
- * que el código consulte solo por este módulo.
+ * Cuántas consultas directas a la base hay en un texto de código: `.from(...)`
+ * o `.rpc(...)` sobre un cliente, con cualquier argumento, y también por
+ * corchetes (`["from"](...)`). `Array.from(...)` y sus parientes no cuentan.
+ * Lo usa la prueba que vigila que el código consulte solo por este módulo.
+ * Límite declarado: es una búsqueda en el texto, no un análisis del código;
+ * no ve una consulta armada con un nombre de método calculado en ejecución.
  */
 export function usosDirectos(codigo: string): number {
-  return (codigo.match(/(?<!Array)\s*\.\s*from\s*\(\s*["'`]/g) ?? []).length;
+  let cuenta = 0;
+  for (const m of codigo.matchAll(/([A-Za-z0-9_$]*)\s*\.\s*(?:from|rpc)\s*\(/g)) {
+    if (!NO_SON_CONSULTAS.has(m[1])) cuenta += 1;
+  }
+  cuenta += (codigo.match(/\[\s*["'`](?:from|rpc)["'`]\s*\]\s*\(/g) ?? []).length;
+  return cuenta;
 }

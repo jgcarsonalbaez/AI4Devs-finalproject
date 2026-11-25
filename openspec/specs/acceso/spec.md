@@ -118,7 +118,10 @@ condiciones de una sesión vigente:
 3. No pasaron más de `sesion_dias` días desde que la persona entró. La duración la controla el
    sistema, no el servicio (D-69). El momento de entrada es el que el servicio anota en el pase al
    entrar con contraseña, que se conserva cuando la sesión se renueva (prueba P5 de HU-01.6). Si el
-   pase no trae ese momento, la condición no se cumple: ante la duda, la sesión vence.
+   pase no trae ese momento, la condición no se cumple: ante la duda, la sesión vence. Si trae
+   varios, vale el más antiguo, por la misma razón. Un día son 24 horas: el plazo no depende de la
+   zona horaria ni de los cambios de horario (revisión del tramo 3, ronda 1; criterio del agente,
+   a confirmar por la Dirección).
 
 Si falla cualquiera, la sesión se cierra en el servicio y la petición se trata como sin sesión.
 
@@ -262,14 +265,20 @@ servicio no tiene una opción de configuración que lo impida, así que lo impid
 disparador en las cuentas del servicio rechaza, con mensaje nuestro, la solicitud de cambio que
 hace la persona con su pase. *Antes de construirlo quedaba por comprobar* si el servicio dejaba
 desactivarlo. **Comprobado en la base local el 25/11/2026:** no hay esa opción, y el disparador
-rechaza la solicitud de la persona y deja el correo como estaba. Que la plataforma deje crear el
-disparador en el servicio gestionado se comprueba en H-4.
+rechaza la solicitud de la persona y deja el correo como estaba; tampoco deja confirmar una
+solicitud que ya estuviera pendiente, y no estorba a la renovación de la sesión
+(`tests/base/prueba-usuario.py`, casos N9, N24 y P13). En el servicio gestionado, H-4 repite esos
+casos y la corrección en dos pasos de abajo (P3 y P10), porque el disparador depende de cómo
+anota el servicio una solicitud de cambio (revisión del tramo 3, ronda 1).
 
-**Límite declarado:** la comprobación del correo vale cuando se escribe el usuario. La credencial
-del sistema sí puede cambiar el correo de una cuenta en el servicio, y la base no se entera: es la
-corrección excepcional de un error de captura que permite D-87, una sola vez, y quien la hace
-reescribe también el usuario. Si no lo hiciera, el correo del usuario quedaría viejo y el reporte
-del supervisor iría a la dirección anterior. **Riesgo aceptado (D-87, acotado por D-103 a la
+**La corrección excepcional de un error de captura (D-87) se hace en dos pasos, y la hacen los
+administradores técnicos:** con la credencial del sistema cambian el correo de la cuenta en el
+servicio, y con el rol de las migraciones —el único que puede leer las cuentas— reescriben el
+usuario (caso P10). Mientras el usuario no se reescriba, la base no deja escribirlo (caso N25).
+
+**Límite declarado:** la comprobación del correo vale cuando se escribe el usuario. Si quien corrige
+la cuenta no reescribe el usuario, la base no se entera: el correo del usuario quedaría viejo y el
+reporte del supervisor iría a la dirección anterior. **Riesgo aceptado (D-87, acotado por D-103 a la
 credencial del sistema).**
 
 Origen: HU-01.CA-12, D-66, D-103.
@@ -432,7 +441,7 @@ lugar, y responder ante un dato de otra organización igual que si no existiera.
 Origen: HU-03.CA-1, HU-03.CA-3, HU-03.CA-4, D-59.
 
 *Construido en HU-03.2 (25/11/2026):* el único lugar es `lib/datos/separacion.ts`, y lo prueba
-`tests/unit/separacion.test.ts`, que además falla si un archivo de `app/` o de `lib/` consulta una
+`tests/unit/separacion.test.ts`, que además falla si un archivo de código del repositorio consulta una
 tabla por fuera de ese módulo. **Límite declarado:** se prueba con un cliente falso; con la base
 real y dos organizaciones lo prueba HU-03.3. La identidad de quien pregunta la entrega «Sesión
 vigente» (HU-01.2).

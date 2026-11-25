@@ -1,9 +1,9 @@
 # Especificación · acceso
 
 > **Estado: aprobada por la Dirección el 19/11/2026 (D-89), tras siete rondas de revisión
-> adversarial.** Ticket H-1. Quedan tres comprobaciones «por comprobar al construir», cada una con
-> su salida escrita: HU-01.2 (cookie) y HU-01.1 (dos, sobre el correo). La de HU-03.1 (sesión
-> abierta) quedó comprobada el 23/11/2026; el resultado está en su requisito.
+> adversarial.** Ticket H-1. Queda una comprobación «por comprobar al construir», con su salida
+> escrita: HU-01.2 (cookie). Las de HU-03.1 (sesión abierta, 23/11/2026) y HU-01.1 (las dos sobre
+> el correo, 25/11/2026) quedaron comprobadas; el resultado está en su requisito.
 > Cubre las historias HU-01 (entrar con cuenta propia), HU-02 (cada rol ve y hace solo lo suyo) y
 > HU-03 (ninguna organización ve a otra). Cada requisito cita el criterio del backlog del que sale
 > o la decisión de la Dirección que lo origina.
@@ -246,22 +246,33 @@ usuario, el correo con el que esa cuenta entra en el servicio de autenticación:
 un usuario cuyo correo no coincida con el de su cuenta en el servicio, comparado sin distinguir
 mayúsculas. Que siga coincidiendo después es el límite declarado de abajo (D-87).
 
-**Por comprobar al construir HU-01.1:** que la base pueda leer el correo de la cuenta en el
-servicio. Si no puede, la garantía deja de estar en la base y esta especificación se corrige antes
-de escribir el código: la comprobación la hace la carga de los datos de arranque, el escenario «el
-correo no es el de la cuenta» se prueba sobre la carga y no sobre la base, y lo que entre por otra
-vía queda como límite declarado.
+**Comprobado al construir HU-01.1 (25/11/2026, en la base local): la base sí puede leer el correo
+de la cuenta**, con el rol de las migraciones; las personas, la credencial del sistema y `anon` no
+pueden leer las cuentas del servicio. La comprobación corre al escribir el usuario con los
+permisos de quien escribe, así que en esta entrega solo escriben usuarios los datos de arranque;
+cualquier otro rol que lo intente recibe un rechazo con mensaje nuestro. *Antes de construirlo
+quedaba por comprobar*, con su salida: si la base no podía leerlo, la comprobación pasaba a la
+carga de los datos de arranque y se corregía esta especificación antes de escribir el código. No
+hizo falta.
 
-**Límite declarado:** la comprobación vale cuando se escribe el usuario. Si después la cuenta
-cambia su correo en el propio servicio, la base no se entera: el sistema no ofrece cambiar el
-correo, pero el servicio puede permitírselo a la persona con su pase. El efecto sería que el correo
-del supervisor quede viejo y su reporte vaya a la dirección anterior. **Riesgo aceptado (D-87):**
-los correos no se cambian; solo se corregiría, excepcionalmente, un error de captura, una sola vez.
-**Por comprobar al construir HU-01.1:** si el servicio deja desactivar que la persona cambie su
-propio correo. Si se puede, se desactiva; así la regla «los correos no se cambian» no depende solo
-de que nadie lo intente.
+**Nadie cambia por sí solo el correo de su cuenta (D-103).** Si una persona pasa a usar otro correo
+—por ejemplo, el del cliente en vez del de la empresa consultora—, se crea un usuario nuevo con ese
+correo, que empieza su propia historia; los registros del usuario anterior quedan tal cual. El
+servicio no tiene una opción de configuración que lo impida, así que lo impide la base: un
+disparador en las cuentas del servicio rechaza, con mensaje nuestro, la solicitud de cambio que
+hace la persona con su pase. *Antes de construirlo quedaba por comprobar* si el servicio dejaba
+desactivarlo. **Comprobado en la base local el 25/11/2026:** no hay esa opción, y el disparador
+rechaza la solicitud de la persona y deja el correo como estaba. Que la plataforma deje crear el
+disparador en el servicio gestionado se comprueba en H-4.
 
-Origen: HU-01.CA-12, D-66.
+**Límite declarado:** la comprobación del correo vale cuando se escribe el usuario. La credencial
+del sistema sí puede cambiar el correo de una cuenta en el servicio, y la base no se entera: es la
+corrección excepcional de un error de captura que permite D-87, una sola vez, y quien la hace
+reescribe también el usuario. Si no lo hiciera, el correo del usuario quedaría viejo y el reporte
+del supervisor iría a la dirección anterior. **Riesgo aceptado (D-87, acotado por D-103 a la
+credencial del sistema).**
+
+Origen: HU-01.CA-12, D-66, D-103.
 
 #### Scenario: correo repetido en otra organización
 - **DADO** un usuario con un correo en la organización A
@@ -272,6 +283,11 @@ Origen: HU-01.CA-12, D-66.
 - **DADO** una cuenta del servicio de autenticación que entra con el correo A
 - **CUANDO** se intenta crear su usuario con el correo B
 - **ENTONCES** la base lo rechaza
+
+#### Scenario: la persona pide cambiar su correo
+- **DADO** una persona con sesión
+- **CUANDO** pide al servicio de autenticación cambiar el correo de su cuenta
+- **ENTONCES** la solicitud se rechaza, y el correo de la cuenta y el de su usuario quedan como estaban
 
 #### Scenario: quien trabaja para dos empresas
 - **DADO** una persona con dos usuarios, cada uno con el correo de su empresa

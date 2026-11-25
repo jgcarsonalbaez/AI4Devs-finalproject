@@ -29,8 +29,11 @@ CASOS = [
     ("N2 una columna de más", "alter table public.usuario add column extra text;", "columnas de public.usuario"),
     ("N3 id con valor por defecto",
      "alter table public.usuario alter column id set default gen_random_uuid();", "columna id"),
+    # Desde HU-06.1, las llaves compuestas de asignacion dependen de la llave
+    # (id, organizacion_id): N4 y N12 se las llevan con cascade dentro de la
+    # transacción, que se deshace.
     ("N4 organizacion_id admite nulo",
-     "alter table public.usuario drop constraint usuario_id_organizacion_id_key;"
+     "alter table public.usuario drop constraint usuario_id_organizacion_id_key cascade;"
      "alter table public.usuario alter column organizacion_id drop not null;", "columna organizacion_id"),
     ("N5 nombre con otro tipo",
      "alter table public.usuario alter column nombre type varchar(50);", "columna nombre"),
@@ -48,7 +51,7 @@ CASOS = [
      "alter table public.usuario add constraint usuario_organizacion_id_fkey foreign key (organizacion_id) "
      "references public.organizacion (id) on delete cascade;", "constraint usuario_organizacion_id_fkey"),
     ("N12 la llave compuesta con una sola columna",
-     "alter table public.usuario drop constraint usuario_id_organizacion_id_key;"
+     "alter table public.usuario drop constraint usuario_id_organizacion_id_key cascade;"
      "alter table public.usuario add constraint usuario_id_organizacion_id_key unique (id);",
      "constraint usuario_id_organizacion_id_key"),
     ("N13 el índice del correo distingue mayúsculas",

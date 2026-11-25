@@ -115,3 +115,7 @@ jobs:
         run: python3 tests/base/prueba-sesion.py
       - name: La validación de la sesión detecta lo que debe
         run: python3 tests/base/prueba-validacion-sesion.py
+      - name: Cliente, asignación y aviso, con datos (HU-06.1)
+        run: python3 tests/base/prueba-aviso-modelo.py
+      - name: La validación del modelo del aviso detecta lo que debe
+        run: python3 tests/base/prueba-validacion-aviso-modelo.py

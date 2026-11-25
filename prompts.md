@@ -348,6 +348,19 @@ de autenticación; un correo, una cuenta. Migración/DB. CA 1, 4, 12. Depende de
 
 *Ajuste humano:* la Dirección decidió que nadie cambia por sí solo el correo de su cuenta: un correo nuevo es un usuario nuevo, con su propia historia (D-103). Confirmó además que la corrección de un error de captura la hace la credencial del sistema.
 
+**HU-03.2 · Filtro por organización en el código (tramo 3, 25/11/2026)**
+
+```text
+Ticket HU-03.2: Filtro por organización en toda consulta del código, en un solo lugar; lo ajeno
+responde como inexistente. Modelo/Dominio. CA 1, 2, 3, 4. Depende de HU-03.1.
+```
+
+*Decisiones del agente:* la aplicación todavía no consulta la base, así que el ticket construye el único lugar por el que lo hará, `lib/datos/separacion.ts`. Toda consulta sale ya filtrada por la organización de quien pregunta; una fila de otra organización que llegara igual se trata como inexistente, y un error de la base no se disfraza de «no existe». Para que «un solo lugar» no dependa de la disciplina, una prueba recorre `app/` y `lib/` y falla si alguien consulta una tabla por fuera del módulo. Se prueba con un cliente falso; con la base real y dos organizaciones lo prueba HU-03.3.
+
+*Lo que se torció:* el mensaje del commit de las pruebas dice 16 casos y son 14.
+
+*Comprobado rompiéndolo:* sin el filtro de organización fallan tres casos; sin la segunda defensa, dos.
+
 ---
 
 > **El prompt que no funcionó (se registra a propósito).** El 17/10/2026 el agente intentó obtener tres decisiones de la Dirección con un cuadro de opciones (stack, visibilidad del repositorio, resultado de la reunión del 16/09). El cuadro se cerró dos veces sin respuesta porque llegaron mensajes del usuario mientras estaba abierto. Se procedió con las recomendaciones del agente como **supuestos declarados** en el README, revisables sección por sección. Lección: con el reloj puesto, preguntar en texto plano y seguir; no bloquear el trabajo en un diálogo.

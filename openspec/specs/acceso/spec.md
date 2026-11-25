@@ -431,6 +431,12 @@ lugar, y responder ante un dato de otra organización igual que si no existiera.
 
 Origen: HU-03.CA-1, HU-03.CA-3, HU-03.CA-4, D-59.
 
+*Construido en HU-03.2 (25/11/2026):* el único lugar es `lib/datos/separacion.ts`, y lo prueba
+`tests/unit/separacion.test.ts`, que además falla si un archivo de `app/` o de `lib/` consulta una
+tabla por fuera de ese módulo. **Límite declarado:** se prueba con un cliente falso; con la base
+real y dos organizaciones lo prueba HU-03.3. La identidad de quien pregunta la entrega «Sesión
+vigente» (HU-01.2).
+
 #### Scenario: dato ajeno por su identificador
 - **CUANDO** un usuario pide por su identificador un dato de otra organización
 - **ENTONCES** la respuesta es la misma, en código y en mensaje, que la de un identificador que no existe
@@ -583,6 +589,6 @@ Origen: HU-02.CA-1 a CA-8; Definition of Done de los tickets de tipo Endpoint/AP
 | El servicio limita los intentos de entrada por dirección IP y no por cuenta (E-4) | D-72 | El límite por IP que el servicio declara en su documentación (comprobación documental de HU-01.6). **No se ha probado:** la prueba local no lo cubrió. H-4 lo comprueba en el servicio gestionado, y comprueba también **qué dirección ve el servicio**: la entrada la llama el servidor (E-3), y si el servicio ve la del servidor, el límite es uno solo para todos y alguien podría agotarlo y bloquear la entrada de todos |
 | El tiempo de respuesta de la entrada delata si un correo tiene cuenta (E-8) | D-77 | El mismo límite por IP, con la misma salvedad: documentado, no probado; H-4 lo comprueba |
 | Lo comprobado del servicio lo fue en una instancia local, no en la gestionada | HU-01.6 | El despliegue (H-4) repite contra el servicio gestionado las pruebas P1, P2 y P5 de HU-01.6 |
-| Si una cuenta cambia su correo en el propio servicio, `usuario.correo` queda viejo y la base no lo detecta | D-87 | Los correos no se cambian: solo un error de captura, excepcional y una sola vez. El sistema no ofrece cambiar el correo, y la base comprueba la coincidencia cada vez que se escribe el usuario |
+| Si la credencial del sistema cambia el correo de una cuenta en el servicio y no reescribe el usuario, `usuario.correo` queda viejo y la base no lo detecta | D-87, acotado por D-103 | Los correos no se cambian: solo un error de captura, excepcional y una sola vez, y lo corrige la credencial del sistema. La persona no puede cambiar el suyo: la base rechaza la solicitud (D-103; `tests/base/prueba-usuario.py`, caso N9). El sistema no ofrece cambiar el correo, y la base comprueba la coincidencia cada vez que se escribe el usuario |
 | El momento de entrada que usa «Sesión vigente» es un campo del pase que la documentación del servicio no describe; una actualización del servicio podría cambiarlo | D-85 | La prueba P5 lo comprobó en local y H-4 la repite en el servicio gestionado; si el campo falta, la sesión se trata como vencida, nunca como vigente |
 | `sesion_abierta()` mira la hora del inicio de cada consulta: una consulta que empezó antes del fin fijado de la sesión conserva su respuesta hasta terminar | D-102 | La siguiente consulta ya mira la hora nueva (casos N32 y P7 de `tests/base/prueba-acceso-organizacion.py`), y una consulta por la API no dura más de 8 segundos: es el tiempo máximo que la base local trae configurado para `authenticator`, el rol con que entra la API, y para `authenticated` (lo comprueba en cada corrida el caso P9, en la base local; en el servicio gestionado no se ha comprobado). Entra en las características a considerar en versiones futuras (D-48): comprobar ese tiempo máximo en el servicio gestionado, o dejarlo fijado por una migración |

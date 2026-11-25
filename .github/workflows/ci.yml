@@ -111,3 +111,7 @@ jobs:
         run: python3 tests/base/prueba-usuario.py
       - name: La validación de usuario detecta lo que debe
         run: python3 tests/base/prueba-validacion-usuario.py
+      - name: La sesión con el pase real, cada persona ve lo suyo (HU-01.2)
+        run: python3 tests/base/prueba-sesion.py
+      - name: La validación de la sesión detecta lo que debe
+        run: python3 tests/base/prueba-validacion-sesion.py

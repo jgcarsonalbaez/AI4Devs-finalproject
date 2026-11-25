@@ -87,7 +87,7 @@ seguimiento diario de trabajo. El avance del día se ve en los commits y en los 
 
 | Archivo en el repositorio | Origen en el espacio de trabajo | Huella | Estado |
 |---|---|---|---|
-| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `8258b8a914d6` | derivada sin nombres |
+| `01-Discovery/discovery-controlador-tiempo.md` | `01-Discovery/discovery-controlador-tiempo.md (fuente privada)` | `5b5e13251e10` | derivada sin nombres |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v1.html` | `498bb231d176` | idéntica |
 | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `02-Alcance/Propuesta MVP Controlador de Tiempo-20260910-v2.html` | `a44ff4d5acbc` | idéntica |
 | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `03-PRD/PRD-MVP-Controlador-de-Tiempo-20261116-v1.md` | `587c5e0e4ceb` | idéntica |

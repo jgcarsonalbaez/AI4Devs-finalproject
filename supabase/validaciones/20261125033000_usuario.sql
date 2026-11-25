@@ -166,8 +166,10 @@ filas(orden, objeto, esperado, encontrado) as (
             from (values ('anon'), ('authenticated')) r(rol)) end
   union all
   select 25, 'función public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)',
-         'boolean · stable · invoker · search_path=""',
-         coalesce((select devuelve || ' · ' || volatilidad || ' · ' || privilegios || ' · ' || config
+         'boolean · stable · invoker · search_path="" · anon no · authenticated no',
+         coalesce((select devuelve || ' · ' || volatilidad || ' · ' || privilegios || ' · ' || config || ' · '
+                          || case when anon_ejecuta then 'anon sí' else 'anon no' end || ' · '
+                          || case when auth_ejecuta then 'authenticated sí' else 'authenticated no' end
                    from fn where firma = 'public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)'),
                   '(no existe)')
   union all

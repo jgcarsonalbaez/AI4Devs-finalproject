@@ -12,6 +12,12 @@
 //
 // Límite declarado: la identidad (usuario y organización de quien pregunta) la
 // entrega «Sesión vigente» (HU-01.2); este módulo la recibe, no la obtiene.
+//
+// Pendiente (revisión interna del tramo 3): las operaciones de la base que se
+// llaman como función (rpc), como el registro del aviso, también pasan por
+// aquí; este módulo todavía no ofrece cómo llamarlas, y el ticket del aviso
+// (HU-06.3) agrega esa entrada. Hasta entonces, la prueba de «un solo lugar»
+// rechaza cualquier llamada directa.
 
 /** Tablas que el código puede consultar. Una tabla nueva entra aquí, o no se consulta. */
 export const TABLAS = ["organizacion", "usuario"] as const;
@@ -91,7 +97,7 @@ export async function buscarPorId<T extends Record<string, unknown>, Q extends F
   if (error) {
     // El mensaje es fijo; el del motor queda como causa, para el registro
     // interno, y no llega a quien pregunta (revisión del tramo 3, ronda 1).
-    throw new Error(`No se pudo consultar ${tabla}. Inténtalo de nuevo en unos minutos.`, { cause: error.message });
+    throw new Error(`No se pudo consultar ${tabla}. Inténtalo de nuevo en unos minutos.`, { cause: error });
   }
   const fila = data as T | null;
   const deFila = String(fila?.[columnaDeOrganizacion(tabla)] ?? "").toLowerCase();
@@ -110,8 +116,11 @@ const NO_SON_CONSULTAS = new Set([
  * o `.rpc(...)` sobre un cliente, con cualquier argumento, y también por
  * corchetes (`["from"](...)`). `Array.from(...)` y sus parientes no cuentan.
  * Lo usa la prueba que vigila que el código consulte solo por este módulo.
- * Límite declarado: es una búsqueda en el texto, no un análisis del código;
- * no ve una consulta armada con un nombre de método calculado en ejecución.
+ * Límite declarado: es una búsqueda en el texto, no un análisis del código.
+ * No ve una consulta por `fetch` directo a la API de la base, ni un `from` sacado
+ * del cliente por desestructuración o llamado con `.call`, ni un nombre de método
+ * calculado en ejecución. Puede marcar en falso un `X.from(...)` que no es una
+ * consulta (por ejemplo, de fechas); ese error es del lado seguro: la prueba falla.
  */
 export function usosDirectos(codigo: string): number {
   let cuenta = 0;

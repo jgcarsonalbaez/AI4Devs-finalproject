@@ -267,14 +267,18 @@ hace la persona con su pase. *Antes de construirlo quedaba por comprobar* si el 
 desactivarlo. **Comprobado en la base local el 25/11/2026:** no hay esa opción, y el disparador
 rechaza la solicitud de la persona y deja el correo como estaba; tampoco deja confirmar una
 solicitud que ya estuviera pendiente, y no estorba a la renovación de la sesión
-(`tests/base/prueba-usuario.py`, casos N9, N24 y P13). En el servicio gestionado, H-4 repite esos
-casos y la corrección en dos pasos de abajo (P3 y P10), porque el disparador depende de cómo
-anota el servicio una solicitud de cambio (revisión del tramo 3, ronda 1).
+(`tests/base/prueba-usuario.py`, casos N9, N24 y P13). En el servicio gestionado, H-4 repite por la
+API los casos N9 y P13 y la corrección en dos pasos de abajo (P3 y P10), porque el disparador
+depende de cómo anota el servicio una solicitud de cambio. N24 es solo local: necesita un
+superusuario para fabricar una solicitud pendiente, y supone que el servicio confirma pasando el
+correo pedido al correo de la cuenta (revisión del tramo 3, ronda 1 y revisión interna).
 
 **La corrección excepcional de un error de captura (D-87) se hace en dos pasos, y la hacen los
 administradores técnicos:** con la credencial del sistema cambian el correo de la cuenta en el
 servicio, y con el rol de las migraciones —el único que puede leer las cuentas— reescriben el
-usuario (caso P10). Mientras el usuario no se reescriba, la base no deja escribirlo (caso N25).
+usuario (caso P10). Mientras el usuario no se reescriba, la base no deja escribirlo (caso N25). Si
+la cuenta tiene una solicitud de cambio pendiente hacia ese mismo correo, primero la limpian: el
+bloqueo la trataría como la confirmación de la persona.
 
 **Límite declarado:** la comprobación del correo vale cuando se escribe el usuario. Si quien corrige
 la cuenta no reescribe el usuario, la base no se entera: el correo del usuario quedaría viejo y el
@@ -441,8 +445,11 @@ lugar, y responder ante un dato de otra organización igual que si no existiera.
 Origen: HU-03.CA-1, HU-03.CA-3, HU-03.CA-4, D-59.
 
 *Construido en HU-03.2 (25/11/2026):* el único lugar es `lib/datos/separacion.ts`, y lo prueba
-`tests/unit/separacion.test.ts`, que además falla si un archivo de código del repositorio consulta una
-tabla por fuera de ese módulo. **Límite declarado:** se prueba con un cliente falso; con la base
+`tests/unit/separacion.test.ts`, que además falla si un archivo de código del repositorio llama a
+`.from(...)` o a `.rpc(...)` por fuera de ese módulo. Es una búsqueda en el texto: no ve una consulta
+por `fetch` directo a la API de la base, ni un `from` sacado del cliente o llamado con `.call`
+(límite declarado en el módulo). Las operaciones que se llaman como función, como el registro del
+aviso, entran a este módulo con su ticket (HU-06.3). **Límite declarado:** se prueba con un cliente falso; con la base
 real y dos organizaciones lo prueba HU-03.3. La identidad de quien pregunta la entrega «Sesión
 vigente» (HU-01.2).
 

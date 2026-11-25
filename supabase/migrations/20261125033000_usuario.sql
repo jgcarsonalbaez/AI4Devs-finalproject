@@ -22,9 +22,12 @@
 --      pueden leer las cuentas; a otro rol le responde con mensaje nuestro.
 --   4. public.impedir_cambio_de_correo_propio() y su disparador en
 --      auth.users (D-103): la solicitud de cambio de correo que hace la
---      persona se rechaza; el cambio que hace la credencial del sistema pasa.
+--      persona se rechaza, y también la confirmación de una que ya estuviera
+--      pendiente; el cambio que hace la credencial del sistema pasa, salvo que
+--      lleve al mismo correo de una solicitud pendiente: entonces primero se
+--      limpia la solicitud.
 --   5a. public.dentro_del_plazo(entrada, dias, ahora): el plazo de la sesión,
---      contado en horas.
+--      contado en horas. Solo la ejecuta su dueño (la llama es_mi_organizacion).
 --   5. Cuerpo nuevo de public.es_mi_organizacion(uuid): sí solo para la
 --      organización de un usuario activo, con la sesión del pase abierta y sin
 --      pasar sesion_dias desde que entró con contraseña.
@@ -37,8 +40,12 @@
 --   - Los dos disparadores corren con los permisos de quien escribe: no son
 --     funciones con privilegios de su dueño y no entran en la lista cerrada
 --     de supabase/comprobaciones/estructura.sql.
---   - Que la plataforma deje crear el disparador en auth.users en el servicio
---     gestionado se comprueba en H-4 (D-103).
+--   - En el servicio gestionado, H-4 comprueba que la plataforma deje crear el
+--     disparador en auth.users y repite por la API los casos de D-103 (N9, P3,
+--     P10 y P13 de tests/base/prueba-usuario.py). N24 es solo local: necesita
+--     un superusuario para fabricar una solicitud pendiente.
+--   - dentro_del_plazo multiplica sesion_dias por 24 en entero: con un valor
+--     absurdo (más de 89 millones de días) daría error en vez de «no».
 --   - Con solo la regla restrictiva y ninguna permisiva, las personas no ven
 --     ni cambian usuarios. Las reglas por rol las pone HU-02.1.
 --   - es_mi_organizacion lee usuario, cuya regla vuelve a llamarla: no entra en
@@ -231,6 +238,9 @@ BEGIN
     AS $fn$
       SELECT entrada + make_interval(hours => dias * 24) >= ahora;
     $fn$;
+    -- Solo su dueño la ejecuta: la llama es_mi_organizacion, que corre con los
+    -- privilegios de su dueño. Nadie la llama por la API (revisión interna).
+    REVOKE ALL ON FUNCTION public.dentro_del_plazo(timestamptz, integer, timestamptz) FROM PUBLIC, anon, authenticated;
   EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'ERROR: no se pudo crear public.dentro_del_plazo. Motivo del motor: % (código %).',
       SQLERRM, SQLSTATE;

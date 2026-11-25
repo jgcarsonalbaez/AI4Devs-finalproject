@@ -346,8 +346,11 @@ pase entre dos consultas de la misma transacción; y sí con un fin futuro (caso
 N32). La hora que mira es la del inicio de cada consulta: una consulta que empezó antes del fin
 conserva su respuesta hasta terminar (riesgo aceptado, D-102; caso P7). El ticket H-4 del
 recorte v4 no pide repetir estos casos en el servicio gestionado: se agregan a su criterio con los
-tickets v5 (D-99), y sin eso no se abre el pull request del tramo 8 (D-101). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 responde siempre
-«no» (D-100; casos N28 a N31, N33 a N36 y P5).*
+tickets v5 (D-99), y sin eso no se abre el pull request del tramo 8 (D-101). La regla se apoya en `es_mi_organizacion`, que hasta el tramo 3 respondía siempre
+«no» (D-100). Desde HU-01.1 (25/11/2026) responde «sí» solo para la organización de un usuario
+activo, con la sesión del pase abierta y sin pasar `sesion_dias` desde que entró con contraseña
+(`tests/base/prueba-usuario.py`, casos P4 a P6 y N10 a N20); a una cuenta sin usuario le sigue
+respondiendo «no» (`tests/base/prueba-acceso-organizacion.py`, casos N28 a N31, N33 a N35 y P5).*
 
 La regla por organización DEBE ser restrictiva: se suma como condición obligatoria a cualquier
 otra, de modo que ninguna regla por rol pueda dejar ver más allá de la organización.

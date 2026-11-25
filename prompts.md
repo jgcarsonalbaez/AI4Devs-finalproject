@@ -333,6 +333,21 @@ este ticket.
 
 *Ronda 4 (24/11/2026, una corrida, corta):* 6 hallazgos, todos MEDIO, ninguno alto ni crítico (`docs/revisiones/tramo-2-hu-03.1-organizacion-ronda4-respuesta.md`). Cuatro eran texto que quedó atrás o que decía más de lo hecho; los otros dos, que la cota de D-102 no tenía prueba y que P7 tenía un margen de un segundo. *Ajuste humano:* la Dirección aprobó un control para el agente antes de responder cada ronda (cruce contra las reglas, búsqueda del texto viejo en todo el repositorio y cada «corregido» con su prueba) y cerró la revisión sin ronda 5.
 
+**HU-01.1 · Usuario, su correo y su organización (tramo 3, 25/11/2026)**
+
+```text
+Ticket HU-01.1: Usuario del sistema: su organización, su estado activo y su vínculo con la cuenta
+de autenticación; un correo, una cuenta. Migración/DB. CA 1, 4, 12. Depende de HU-03.1.
+```
+
+*Antes de escribir código:* las dos comprobaciones que la especificación dejaba «por comprobar al construir HU-01.1», hechas en la base local. La base sí puede leer el correo de la cuenta, pero solo con el rol de las migraciones. Y el servicio no tiene opción para impedir que la persona cambie su correo.
+
+*Decisiones del agente:* la comprobación del correo corre con los permisos de quien escribe, para no sumar otra función con privilegios de su dueño a la lista cerrada; quien no puede leer las cuentas recibe un rechazo con mensaje nuestro. El momento de entrada sale del pase (método `password` en `amr`), y si falta o tiene otra forma, la respuesta es «no». El buzón de prueba de la base local se levanta, porque sin él el servicio responde con un error de envío que la prueba no podría distinguir del rechazo de la base. Las ayudas de la API de las pruebas pasan a `scripts/base/api_local.py`.
+
+*Lo que se torció:* N5 suponía que la credencial del sistema podía escribir usuarios, y no tiene permiso; la prueba se lo da dentro de la transacción. Tres valores esperados de la validación estaban mal escritos (el motor nombra la función con su esquema). Y N17 de la prueba de validación de `organizacion` rompía la llave primaria, de la que ahora depende la llave foránea de `usuario`.
+
+*Ajuste humano:* la Dirección decidió que nadie cambia por sí solo el correo de su cuenta: un correo nuevo es un usuario nuevo, con su propia historia (D-103). Confirmó además que la corrección de un error de captura la hace la credencial del sistema.
+
 ---
 
 > **El prompt que no funcionó (se registra a propósito).** El 17/10/2026 el agente intentó obtener tres decisiones de la Dirección con un cuadro de opciones (stack, visibilidad del repositorio, resultado de la reunión del 16/09). El cuadro se cerró dos veces sin respuesta porque llegaron mensajes del usuario mientras estaba abierto. Se procedió con las recomendaciones del agente como **supuestos declarados** en el README, revisables sección por sección. Lección: con el reloj puesto, preguntar en texto plano y seguir; no bloquear el trabajo en un diálogo.

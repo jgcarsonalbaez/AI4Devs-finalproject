@@ -102,8 +102,13 @@ def main() -> int:
         ok, d = inserta(f"'{id_3}', '{org_b}', 'P2', '{correo_3}', '+507 6000-0003'",
                         antes="alter table public.usuario disable trigger usuario_correo_de_cuenta;")
         caso("P2 control de N4: con el disparador apagado, un correo nuevo sí entra", ok, d)
-        ok, d = inserta(f"'{id_3}', '{org_a}', 'N5', '{correo_3}', '+507 6000-0003'", rol="service_role")
-        caso("N5 la credencial del sistema no puede leer las cuentas: rechazo con mensaje nuestro, no del motor",
+        # La credencial del sistema no tiene hoy permiso de escribir usuarios; se
+        # le da dentro de la transacción (con el de leer, para devolver la fila),
+        # como podría dárselo un ticket futuro,
+        # para que el rechazo venga de la comprobación del correo y no del permiso.
+        ok, d = inserta(f"'{id_3}', '{org_a}', 'N5', '{correo_3}', '+507 6000-0003'", rol="service_role",
+                        antes="grant insert, select on public.usuario to service_role;")
+        caso("N5 un rol que puede escribir usuarios pero no leer las cuentas: rechazo con mensaje nuestro",
              not ok and "no puede leer las cuentas" in d, d)
         ok, d = inserta(f"'{id_3}', '{uuid.uuid4()}', 'N6', '{correo_3}', '+507 6000-0003'")
         caso("N6 una organización que no existe: la base lo rechaza", not ok and "foreign key" in d, d)

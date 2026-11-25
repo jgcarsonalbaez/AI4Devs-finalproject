@@ -143,11 +143,15 @@ def main() -> int:
         caso("P3 control: la credencial del sistema sí cambia el correo de una cuenta (D-87, D-103)",
              c == 200 and fila == nuevo_3, f"respondió {c}; la cuenta quedó en {fila!r}")
         # Revisión del tramo 3, ronda 1: una solicitud que ya estaba pendiente
-        # (anterior al bloqueo) tampoco se puede confirmar. Se fabrica con el
-        # bloqueo apagado y se confirma como lo haría el servicio.
+        # (anterior al bloqueo) tampoco se puede confirmar. El superusuario solo
+        # fabrica el estado (bloqueo apagado, solicitud anotada); la confirmación
+        # corre con el rol del servicio de autenticación. Supone que el servicio
+        # confirma pasando email_change a email: es lo que hace en local, no se
+        # comprobó en el servicio gestionado, y por eso este caso es solo local.
         r = psql(f"begin;\nalter table auth.users disable trigger impedir_cambio_de_correo_propio;\n"
                  f"update auth.users set email_change = 'pendiente-{uuid.uuid4()}@example.com' where id = '{id_1}';\n"
                  f"alter table auth.users enable trigger impedir_cambio_de_correo_propio;\n"
+                 f"set local role supabase_auth_admin;\n"
                  f"update auth.users set email = email_change, email_change = '' where id = '{id_1}';\nrollback;\n",
                  usuario="supabase_admin")
         caso("N24 una solicitud pendiente de antes del bloqueo no se puede confirmar",
@@ -213,16 +217,27 @@ def main() -> int:
         # Revisión del tramo 3, ronda 1. El plazo se compara en una función aparte,
         # para poder probar el instante exacto; y se cuenta en horas absolutas, sin
         # depender de la zona horaria de la sesión de la base.
-        def plazo(entrada: str, dias: int, ahora: str) -> str:
-            return responde(psql(f"select public.dentro_del_plazo(timestamptz '{entrada}', {dias}, "
-                                 f"timestamptz '{ahora}');"))
+        def plazo(entrada: str, dias: int, ahora: str, zona: str = "UTC") -> str:
+            return responde(psql(f"begin; set local timezone to '{zona}';\n"
+                                 f"select public.dentro_del_plazo(timestamptz '{entrada}', {dias}, "
+                                 f"timestamptz '{ahora}');\nrollback;"))
 
         d = plazo("2026-10-26 12:00:00+00", 30, "2026-11-25 12:00:00+00")
         caso("P11 exactamente en el plazo, todavía vale", d == "t", d)
         d = plazo("2026-10-26 12:00:00+00", 30, "2026-11-25 12:00:00.000001+00")
         caso("N26 un instante después del plazo, ya no vale", d == "f", d)
-        d = mia(entrada_hace(720 * 3600 + 1800), org_a, antes="set local timezone to 'America/New_York';")
+        # Instantes fijos que cruzan el cambio de horario de New York (01/11/2026):
+        # 30 días de calendario serían 721 horas; el plazo son 720. Con la hora
+        # actual el caso solo distinguiría durante un mes (revisión interna).
+        d = plazo("2026-10-26 12:00:00+00", 30, "2026-11-25 12:30:00+00", zona="America/New_York")
         caso("N27 en una zona con cambio de horario, 30 días son 720 horas: 720 h y media ya vencen", d == "f", d)
+        # es_mi_organizacion decide el plazo con dentro_del_plazo, no con una
+        # comparación propia: con la función cambiada para decir siempre «no»,
+        # el mismo pase vigente de P4 ya no tiene organización.
+        d = mia(bueno, org_a, antes="create or replace function public.dentro_del_plazo(entrada timestamptz, dias integer, "
+                                    "ahora timestamptz) returns boolean language sql stable set search_path = '' "
+                                    "as $$ select false $$;")
+        caso("N29 es_mi_organizacion usa dentro_del_plazo: si el plazo dice no, responde no", d == "f", d)
         ahora = int(time.time())
         varias = {**bueno, "amr": [{"method": "password", "timestamp": ahora - 31 * DIA},
                                    {"method": "password", "timestamp": ahora}]}

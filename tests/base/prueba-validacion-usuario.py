@@ -87,6 +87,9 @@ CASOS = [
     ("N25 el plazo de la sesión deja de fijar su search_path",
      "alter function public.dentro_del_plazo(timestamptz, integer, timestamptz) reset search_path;",
      "función public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)"),
+    ("N28 sin sesión se puede llamar al plazo por la API (revisión interna)",
+     "grant execute on function public.dentro_del_plazo(timestamptz, integer, timestamptz) to anon;",
+     "función public.dentro_del_plazo(timestamp with time zone,integer,timestamp with time zone)"),
     ("N26 el dueño de es_mi_organizacion ya no omite las reglas (riesgo de recursión)",
      "alter function public.es_mi_organizacion(uuid) owner to authenticated;",
      "dueño de las funciones con privilegios de su dueño"),
@@ -155,7 +158,7 @@ def main() -> int:
     sin_caso = sorted(FILAS - {f for _, _, f in CASOS if f})
     ok = not sin_caso
     malos += 0 if ok else 1
-    print(f"{'✓' if ok else '✗'} N27 cada fila tiene un desvío que la marca: "
+    print(f"{'✓' if ok else '✗'} N29 cada fila tiene un desvío que la marca: "
           f"{'sí' if ok else 'faltan ' + ', '.join(sin_caso)}")
     total = len(CASOS) + 1
     print(f"prueba-validacion-usuario: {total - malos} de {total} casos dan lo esperado.")

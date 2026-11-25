@@ -141,7 +141,9 @@ describe("buscarPorId: lo ajeno responde igual que lo que no existe (D-67)", () 
     );
     expect(error?.message).toBe("No se pudo consultar usuario. Inténtalo de nuevo en unos minutos.");
     expect(error?.message).not.toContain(interno);
-    expect(String((error as Error & { cause?: unknown })?.cause)).toContain(interno);
+    // La causa guarda el error entero del cliente (mensaje, código, detalle).
+    const causa = (error as Error & { cause?: { message?: string } })?.cause;
+    expect(causa?.message).toBe(interno);
   });
 
   it("P6 el mismo identificador de organización en mayúsculas sigue siendo propio", async () => {
@@ -171,15 +173,18 @@ describe("en un solo lugar: el código no consulta tablas por fuera del módulo 
   const RAIZ = join(__dirname, "..", "..");
   const MODULO = join("lib", "datos", "separacion.ts");
 
-  const NO_SE_RECORREN = new Set(["node_modules", ".next", ".git", "tests"]);
+  // Dependencias, compilados y git se saltan a cualquier profundidad; de las
+  // pruebas, solo la carpeta tests/ de la raíz (revisión interna del tramo 3).
+  const NO_SE_RECORREN = new Set(["node_modules", ".next", ".git"]);
+  const PRUEBAS = join(RAIZ, "tests");
 
   function archivos(dir: string): string[] {
     let salida: string[] = [];
     for (const nombre of readdirSync(dir)) {
-      if (NO_SE_RECORREN.has(nombre)) continue;
       const ruta = join(dir, nombre);
+      if (NO_SE_RECORREN.has(nombre) || ruta === PRUEBAS) continue;
       if (statSync(ruta).isDirectory()) salida = salida.concat(archivos(ruta));
-      else if (/\.(ts|tsx|js|jsx|mjs)$/.test(nombre)) salida.push(ruta);
+      else if (/\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(nombre)) salida.push(ruta);
     }
     return salida;
   }

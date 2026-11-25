@@ -363,6 +363,35 @@ responde como inexistente. Modelo/Dominio. CA 1, 2, 3, 4. Depende de HU-03.1.
 
 *Revisión adversarial del tramo 3 (25/11/2026, una ronda con dos corridas):* 13 hallazgos distintos, 5 altos y 8 medios, ninguno crítico, y una sospecha (`docs/revisiones/tramo-3-hu-01.1-hu-03.2-usuario-filtro-ronda1-respuesta.md`). Los de más peso: la corrección de un error de captura no se podía completar con la credencial del sistema; el bloqueo de D-103 dejaba confirmar una solicitud pendiente; la prueba de «un solo lugar» se podía eludir; la validación de `usuario` no tenía ningún caso que la viera fallar. Se corrigieron con el control G6 ampliado: pruebas vistas en rojo primero (`ad4e290`) y código (`e2ac6cd`). La entrada de HU-03.2 dice que la prueba recorre `app/` y `lib/`; desde esta ronda recorre todo el repositorio. *Revisión interna (G6, paso 7):* un agente sin contexto revisó solo las correcciones y encontró 11 hallazgos, todos nacidos de ellas y ninguno crítico ni alto; se corrigieron o se declararon como límite antes de abrir el pull request, sin pagar otra ronda. *Ajuste humano:* la Dirección autorizó una ronda, la subida y el pull request, y pidió medir los controles: la tabla está en la respuesta.
 
+**HU-01.2 · Reglas de la sesión (tramo 4, 25/11/2026)**
+
+```text
+Ticket HU-01.2: Reglas de la sesión: entrar, cerrar, vigencia leída de un parámetro (30 días de
+inicio), corte al desactivar la cuenta y cierre de las demás sesiones al fijar una contraseña.
+Modelo/Dominio. CA 1, 2, 4, 5, 6, 7, 11. Depende de HU-01.1 y HU-01.6. Recorte v4: deja fuera el
+cierre de las demás sesiones (CA-11).
+```
+
+*Ajuste humano antes de empezar:* la Dirección aprobó el criterio que el agente había dejado escrito en la especificación tras la revisión del tramo 3: con varias entradas con contraseña cuenta la más antigua, y un día de sesión son 24 horas (D-104).
+
+*Decisiones del agente:* la regla vive en `lib/sesion/vigente.ts`, con las reglas puras aparte (`lib/sesion/reglas.ts`) para probarlas con reloj controlado. El cliente oficial del servicio se fija en versiones de al menos tres semanas (`@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.119.0). La identidad sale de leer el propio usuario con el pase de la persona; para eso la migración `20261125164000_sesion` da a las personas permiso de leer `usuario` y `organizacion`, y dos reglas permisivas que dejan ver solo lo propio: la parte de «Reglas por rol en la base» que vale igual para todo rol. Si falla una condición, se cierra la sesión de ese navegador con alcance local, para no cerrar las demás (CA-11 está fuera). Un error de la base no cierra la sesión: se informa. La configuración del entorno y la unión con las cookies de Next.js quedan para HU-01.3, que las usa.
+
+*Comprobado al construir:* en el código del cliente oficial, la cookie sale por defecto sin la marca que impide que la lea la página; el sistema reescribe sus marcas. En la base local, las personas no tenían permiso de leer ninguna tabla: la plataforma ya no lo da por defecto.
+
+*Lo que se torció:* el hook de datos que no salen detuvo el commit del código por la línea que pasa la contraseña al servicio: una referencia a variable, larga, que su patrón lee como un secreto escrito. Se corrigió el contenido con una variable corta, sin tocar el hook; quedó la línea en el registro de bloqueos. Las validaciones de `organizacion` y `usuario` contaban todas las reglas de su tabla, así que cualquier regla nueva las rompía: ahora cada validación vigila las de su clase (las viejas, las restrictivas; la de la sesión, las permisivas). N4 de `tests/base/prueba-sesion.py` esperaba un cuerpo vacío donde la API responde 401 con texto.
+
+**HU-06.1 · Cliente, asignación y aviso de inicio (tramo 4, 25/11/2026)**
+
+```text
+Ticket HU-06.1: Cliente con su zona horaria, asignación con horario, días laborables y vigencia, y
+aviso de inicio: uno por asignación y día, que no se edita ni se quita. Migración/DB. CA 3, 12, 13.
+Depende de HU-03.1 y HU-01.1.
+```
+
+*Decisiones del agente:* las tres tablas nacen con su organización, sus llaves compuestas y su regla restrictiva. El aviso no se edita, no se quita ni se vacía: dos disparadores, que también detienen al dueño de la tabla, y la credencial del sistema sin ningún permiso sobre `aviso_inicio`. Lo que la sección «Datos» pide y este ticket no puede construir se declara en la migración y en la especificación: los roles de la asignación necesitan `usuario_rol` (HU-02.1), y la hora, la fecha, la clasificación y el rol de la operación de registro son de HU-06.3.
+
+*Lo que se torció:* al verlas en rojo, varias pruebas negativas pasaban solo porque la tabla no existía: eran más débiles que lo que probaban. Se reescribieron para exigir el nombre de la constraint o el motivo exacto, y en rojo ninguna pasó. Dos desvíos de la prueba de la validación de `usuario` dejaron de poder aplicarse, porque las llaves compuestas de `asignacion` dependen ahora de la llave (id, organizacion_id); llevan `cascade` dentro de su transacción.
+
 ---
 
 > **El prompt que no funcionó (se registra a propósito).** El 17/10/2026 el agente intentó obtener tres decisiones de la Dirección con un cuadro de opciones (stack, visibilidad del repositorio, resultado de la reunión del 16/09). El cuadro se cerró dos veces sin respuesta porque llegaron mensajes del usuario mientras estaba abierto. Se procedió con las recomendaciones del agente como **supuestos declarados** en el README, revisables sección por sección. Lección: con el reloj puesto, preguntar en texto plano y seguir; no bloquear el trabajo en un diálogo.

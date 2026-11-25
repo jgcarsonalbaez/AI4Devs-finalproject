@@ -1,9 +1,9 @@
 # Especificación · acceso
 
 > **Estado: aprobada por la Dirección el 19/11/2026 (D-89), tras siete rondas de revisión
-> adversarial.** Ticket H-1. Queda una comprobación «por comprobar al construir», con su salida
-> escrita: HU-01.2 (cookie). Las de HU-03.1 (sesión abierta, 23/11/2026) y HU-01.1 (las dos sobre
-> el correo, 25/11/2026) quedaron comprobadas; el resultado está en su requisito.
+> adversarial.** Ticket H-1. Las comprobaciones «por comprobar al construir» de HU-03.1 (sesión
+> abierta, 23/11/2026), HU-01.1 (las dos sobre el correo, 25/11/2026) y HU-01.2 (la cookie,
+> 25/11/2026) quedaron comprobadas; el resultado está en su requisito.
 > Cubre las historias HU-01 (entrar con cuenta propia), HU-02 (cada rol ve y hace solo lo suyo) y
 > HU-03 (ninguna organización ve a otra). Cada requisito cita el criterio del backlog del que sale
 > o la decisión de la Dirección que lo origina.
@@ -129,6 +129,15 @@ Origen: HU-01.CA-5, HU-01.CA-6, D-60, D-69, D-76, D-104.
 **Decidido aquí:** `sesion_dias` es un valor por organización y rige en cuanto cambia. No lleva
 «desde el día siguiente»: esa regla es del margen y del intervalo (RF-14).
 
+*Construido en HU-01.2 (25/11/2026):* el único lugar es `lib/sesion/vigente.ts`, que consulta al
+servicio con el pase en cada petición y obtiene quién pregunta leyendo, con ese mismo pase, su
+propio usuario y el plazo de su organización (`leerMiUsuario`, en `lib/datos/separacion.ts`). Si
+falla una condición, cierra en el servicio la sesión de ese navegador (alcance local); cerrar
+las demás es HU-01.CA-11, fuera de esta entrega. Lo prueban `tests/unit/sesion.test.ts`, con
+reloj controlado, y `tests/base/prueba-sesion.py`, con el pase real. **Límite declarado:** un
+error de la base al leer el usuario no cierra la sesión; la petición falla con mensaje nuestro.
+Cerrarla por una falla pasajera sacaría a todas las personas a la vez.
+
 #### Scenario: se vuelve a abrir dentro del plazo
 - **DADO** que una persona entró hace menos de `sesion_dias` días y no cerró su sesión
 - **CUANDO** vuelve a abrir la aplicación
@@ -199,9 +208,16 @@ subdominio**, y, en el sistema desplegado, para que solo viaje por conexión cif
 Origen: HU-01.CA-2 y HU-06.CA-13 (un aviso no se puede quitar: uno inducido desde otro sitio
 tampoco); hallazgo 7 de la primera ronda de revisión de esta especificación.
 
-**Por comprobar al construir HU-01.2:** con qué atributos entrega la cookie el cliente oficial del
-servicio. No se ha comprobado. La regla de arriba no depende de eso: la comprobación del origen la
-hace el sistema.
+**Comprobado al construir HU-01.2 (25/11/2026), en el código del cliente oficial
+(`@supabase/ssr` 0.12.7):** por sí solo escribe la cookie sin dominio, pero **sin** la marca que
+impide que la lea el código de la página y sin la de conexión cifrada. Por eso el sistema reescribe
+las marcas de toda cookie antes de enviarla (`lib/sesion/cliente.ts`): que no la lea la página,
+sin dominio aunque el cliente lo pida y, si la dirección pública es cifrada, solo por conexión
+cifrada. Lo prueban `tests/unit/sesion.test.ts` y, con el cliente oficial y la base local,
+`tests/integration/sesion.test.ts`, que corre solo en local. La comprobación del origen para entrar
+y cerrar está en `lib/sesion/reglas.ts`; la de las operaciones que cambian datos llega con cada
+operación (HU-06.3), y la que impide mostrar las páginas en un marco de otro sitio, con las
+pantallas (HU-01.3).
 
 #### Scenario: petición desde otro sitio
 - **DADO** una persona con sesión vigente
@@ -450,7 +466,9 @@ por `fetch` directo a la API de la base, ni un `from` sacado del cliente o llama
 (límite declarado en el módulo). Las operaciones que se llaman como función, como el registro del
 aviso, entran a este módulo con su ticket (HU-06.3). **Límite declarado:** se prueba con un cliente falso; con la base
 real y dos organizaciones lo prueba HU-03.3. La identidad de quien pregunta la entrega «Sesión
-vigente» (HU-01.2).
+vigente» (HU-01.2), que la obtiene con `leerMiUsuario`: la única lectura del módulo que no sale
+filtrada por organización, porque es la que la produce; la regla restrictiva de la base sigue
+cortando.
 
 #### Scenario: dato ajeno por su identificador
 - **CUANDO** un usuario pide por su identificador un dato de otra organización
@@ -474,6 +492,11 @@ El sistema DEBE limitar en la base, además de por organización, qué filas ve 
 | `parametro` | Los de su organización, si es dirección | Nadie |
 | `no_reportado` | Los de las asignaciones que supervisa · todos los de su organización si es dirección. **El consultor no los ve, tampoco los suyos** | Nadie; los crea el sistema |
 | `organizacion` | La propia | Nadie |
+
+*Construido en HU-01.2 (25/11/2026):* las filas «la propia» de `usuario` y de `organizacion`, que
+valen igual para todo rol y que «Sesión vigente» necesita: las personas pueden leer esas dos
+tablas, y nada más que eso, y solo su propio usuario y su propia organización (migración
+`20261125164000_sesion`, `tests/base/prueba-sesion.py`). El resto de esta tabla lo pone HU-02.1.
 
 «Nadie» quiere decir ninguna persona con su sesión. La ejecución recurrente y los datos de
 arranque usan una credencial del sistema, que no pasa por estas reglas y vive solo en el servidor.

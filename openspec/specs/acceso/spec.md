@@ -120,12 +120,11 @@ condiciones de una sesión vigente:
    entrar con contraseña, que se conserva cuando la sesión se renueva (prueba P5 de HU-01.6). Si el
    pase no trae ese momento, la condición no se cumple: ante la duda, la sesión vence. Si trae
    varios, vale el más antiguo, por la misma razón. Un día son 24 horas: el plazo no depende de la
-   zona horaria ni de los cambios de horario (revisión del tramo 3, ronda 1; criterio del agente,
-   a confirmar por la Dirección).
+   zona horaria ni de los cambios de horario (D-104).
 
 Si falla cualquiera, la sesión se cierra en el servicio y la petición se trata como sin sesión.
 
-Origen: HU-01.CA-5, HU-01.CA-6, D-60, D-69, D-76.
+Origen: HU-01.CA-5, HU-01.CA-6, D-60, D-69, D-76, D-104.
 
 **Decidido aquí:** `sesion_dias` es un valor por organización y rige en cuanto cambia. No lleva
 «desde el día siguiente»: esa regla es del margen y del intervalo (RF-14).

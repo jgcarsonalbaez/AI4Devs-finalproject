@@ -21,10 +21,23 @@
 //     se cierra solo la de este navegador.
 //   - Un error de la base al leer el usuario no cierra la sesión: se informa
 //     con mensaje nuestro (cerrarla por una falla pasajera sacaría a todos).
+//     En la entrada es al contrario: ahí la sesión acaba de crearse y, si no se
+//     pudo comprobar el usuario, se retira (hallazgo B de la ronda 1 del
+//     tramo 4), porque nadie debe quedar con sesión sin usuario comprobado.
+//   - Un cierre que el servicio rechaza o no contesta no se declara hecho
+//     (hallazgo A); el corte automático sí sigue adelante, y su límite está en
+//     cortar().
 //   - Las pantallas y el desvío a la entrada de toda página sin sesión son de
 //     HU-01.3.
 import { leerMiUsuario, type ClienteDeDatos, type Filtrable, type Identidad, type UnaFila } from "@/lib/datos/separacion";
-import { MENSAJE_UNICO, ORIGEN_RECHAZADO, dentroDelPlazo, momentoDeEntrada, vieneDelPropioSitio } from "@/lib/sesion/reglas";
+import {
+  MENSAJE_UNICO,
+  NO_SE_CERRO,
+  ORIGEN_RECHAZADO,
+  dentroDelPlazo,
+  momentoDeEntrada,
+  vieneDelPropioSitio,
+} from "@/lib/sesion/reglas";
 
 type ConError = { error: unknown };
 type ConPase = { access_token: string } | null;
@@ -51,9 +64,22 @@ function contenidoDelPase(pase: string): Record<string, unknown> | null {
   }
 }
 
-/** Cierra la sesión de este navegador en el servicio; lo que responda no cambia que la petición queda sin sesión. */
+/**
+ * Cierra la sesión de este navegador en el servicio; lo que responda no cambia
+ * que la petición queda sin sesión, porque una condición ya falló.
+ *
+ * Límite declarado (hallazgo A de la ronda 1 del tramo 4): si el servicio
+ * rechaza el cierre o no responde, la cookie se queda en el navegador y ese
+ * error no sale a quien pregunta. No queda sesión utilizable: cada petición
+ * vuelve a comprobar las tres condiciones y vuelve a intentar el corte. Lo que
+ * sí cambiaría es volver a servir si la cuenta se reactiva dentro del plazo.
+ */
 async function cortar<Q extends Filtrable<Q> & UnaFila>(cliente: ClienteDeSesion<Q>): Promise<null> {
-  await cliente.auth.signOut({ scope: "local" });
+  try {
+    await cliente.auth.signOut({ scope: "local" });
+  } catch {
+    // Sin respuesta del servicio: la petición queda sin sesión igual.
+  }
   return null;
 }
 
@@ -120,18 +146,47 @@ export async function entrar<Q extends Filtrable<Q> & UnaFila>(
   const { correo, contrasena } = credenciales;
   const { data, error } = await cliente.auth.signInWithPassword({ email: correo, password: contrasena });
   const pase = data?.session?.access_token;
-  if (error || !pase) return NO_ENTRA;
-  const identidad = await comprobarPase(cliente, pase, ahora);
+  if (error || !pase) {
+    // El navegador puede traer una sesión de antes: lo que este requisito
+    // promete es que una entrada rechazada lo deja sin sesión, y si no se
+    // corta sigue operando como la persona anterior (hallazgo C de la ronda 1
+    // del tramo 4).
+    await cortar(cliente);
+    return NO_ENTRA;
+  }
+  let identidad: Identidad | null;
+  try {
+    identidad = await comprobarPase(cliente, pase, ahora);
+  } catch (causa) {
+    // La sesión ya quedó escrita en el navegador. Si no se pudo comprobar el
+    // usuario, se retira antes de informar: solo queda con sesión quien tiene
+    // usuario activo (hallazgo B). El límite «un error de la base no cierra la
+    // sesión» vale para una petición ya autenticada, no para la entrada.
+    await cortar(cliente);
+    throw causa;
+  }
   return identidad ? { estado: "dentro", identidad } : NO_ENTRA;
 }
 
-/** Cierra la sesión de este navegador: el pase que tenía deja de servir. Solo desde el propio sitio. */
+/**
+ * Cierra la sesión de este navegador: el pase que tenía deja de servir. Solo
+ * desde el propio sitio. Si el servicio rechaza el cierre o la llamada falla,
+ * no se dice «cerrada» lo que no se cerró: el pase podría seguir sirviendo, y
+ * quien pidió cerrar tiene que saberlo para volver a intentarlo (hallazgo A de
+ * la ronda 1 del tramo 4).
+ */
 export async function cerrar<Q extends Filtrable<Q> & UnaFila>(
   cliente: ClienteDeSesion<Q>,
   origen: string | null | undefined,
   direccionPublica: string,
-): Promise<{ estado: "cerrada" } | typeof ORIGEN_RECHAZADO> {
+): Promise<{ estado: "cerrada" } | typeof NO_SE_CERRO | typeof ORIGEN_RECHAZADO> {
   if (!vieneDelPropioSitio(origen, direccionPublica)) return ORIGEN_RECHAZADO;
-  await cliente.auth.signOut({ scope: "local" });
+  try {
+    const { error } = await cliente.auth.signOut({ scope: "local" });
+    if (error) return NO_SE_CERRO;
+  } catch {
+    // El motivo del servicio no sale a quien pregunta: el mensaje es nuestro.
+    return NO_SE_CERRO;
+  }
   return { estado: "cerrada" };
 }

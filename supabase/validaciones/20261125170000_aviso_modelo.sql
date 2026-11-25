@@ -39,6 +39,10 @@ con as (
   join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
   where c.relname in (select t from tablas)
 ),
+-- Solo las reglas restrictivas, que son las de este ticket: las permisivas de
+-- lectura por rol las agrega HU-02.1, y esta fila no debe cambiar cuando
+-- lleguen (revisión del tramo 4, ronda 1, hallazgo I). Cada regla permisiva
+-- nueva la comprueba la validación de su propia migración.
 pol as (
   select c.relname::text as tabla, p.polname::text as nombre,
          case when p.polpermissive then 'permisiva' else 'restrictiva' end || ' · '
@@ -50,7 +54,7 @@ pol as (
   from pg_policy p
   join pg_class c on c.oid = p.polrelid
   join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
-  where c.relname in (select t from tablas)
+  where c.relname in (select t from tablas) and not p.polpermissive
 ),
 fn as (
   select p.oid::regprocedure::text as firma,
@@ -76,6 +80,20 @@ priv as (
                    where to_regclass(x.tabla) is not null and has_table_privilege(r.rol, x.tabla, p.priv)),
                   'ninguno') as tiene
   from (values ('anon'), ('authenticated'), ('service_role')) r(rol),
+       (values ('public.cliente'), ('public.asignacion'), ('public.aviso_inicio')) x(tabla)
+),
+-- Lo mismo, sin contar el de leer: el permiso de leer lo da HU-02.1 («Reglas
+-- por rol en la base»), y esta fila no debe cambiar cuando llegue. Lo que
+-- HU-02.1 no toca es escribir —la columna «Cambia» de esa tabla dice «nadie»
+-- en esta entrega— ni TRUNCATE, TRIGGER y REFERENCES (CLAUDE.md §5).
+priv_sin_leer as (
+  select r.rol, x.tabla,
+         coalesce((select string_agg(p.priv, ',' order by p.priv)
+                   from (values ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('TRIGGER'),
+                                ('REFERENCES')) p(priv)
+                   where to_regclass(x.tabla) is not null and has_table_privilege(r.rol, x.tabla, p.priv)),
+                  'ninguno') as tiene
+  from (values ('anon'), ('authenticated')) r(rol),
        (values ('public.cliente'), ('public.asignacion'), ('public.aviso_inicio')) x(tabla)
 ),
 filas(orden, objeto, esperado, encontrado) as (
@@ -153,21 +171,21 @@ filas(orden, objeto, esperado, encontrado) as (
                    from pg_class c join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
                    where c.relname in (select t from tablas)), '(no existen)')
   union all
-  select 12, 'reglas sobre las tres tablas',
+  select 12, 'reglas restrictivas sobre las tres tablas',
          'asignacion.asignacion_separacion: restrictiva · ALL · public · public.es_mi_organizacion(organizacion_id) · public.es_mi_organizacion(organizacion_id) · '
          'aviso_inicio.aviso_inicio_separacion: restrictiva · ALL · public · public.es_mi_organizacion(organizacion_id) · public.es_mi_organizacion(organizacion_id) · '
          'cliente.cliente_separacion: restrictiva · ALL · public · public.es_mi_organizacion(organizacion_id) · public.es_mi_organizacion(organizacion_id)',
          coalesce((select string_agg(tabla || '.' || nombre || ': ' || def, ' · ' order by tabla, nombre) from pol),
                   '(ninguna)')
   union all
-  -- Las personas: sin TRUNCATE, TRIGGER ni REFERENCES (CLAUDE.md §5) y, hasta
-  -- HU-02.1, sin leer ni escribir.
-  select 13, 'privilegios de anon y authenticated sobre las tres tablas',
+  -- Las personas: sin escribir y sin TRUNCATE, TRIGGER ni REFERENCES
+  -- (CLAUDE.md §5). El permiso de leer no se mira aquí: lo da HU-02.1.
+  select 13, 'privilegios de anon y authenticated, sin contar leer, sobre las tres tablas',
          'anon public.asignacion: ninguno · anon public.aviso_inicio: ninguno · anon public.cliente: ninguno · '
          'authenticated public.asignacion: ninguno · authenticated public.aviso_inicio: ninguno · '
          'authenticated public.cliente: ninguno',
          (select string_agg(rol || ' ' || tabla || ': ' || tiene, ' · ' order by rol, tabla)
-          from priv where rol in ('anon', 'authenticated'))
+          from priv_sin_leer)
   union all
   -- La credencial del sistema no inserta avisos, ni los edita, quita o vacía
   -- (spec aviso-inicio, «Datos»): se lo niega el permiso, no la regla.

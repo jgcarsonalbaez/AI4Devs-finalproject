@@ -20,7 +20,11 @@
 --   3. public.asignacion, con sus constraints en la misma sentencia.
 --   4. public.aviso_inicio, con sus constraints en la misma sentencia.
 --   5. public.impedir_cambio_de_aviso() y sus dos disparadores: nadie edita,
---      quita ni vacía un aviso, con cualquier rol, también el dueño.
+--      quita ni vacía un aviso, en toda escritura y con cualquier rol, también
+--      el dueño de la tabla. Hasta ahí llega: un disparador no impide que el
+--      dueño lo apague o lo quite antes de escribir, porque ALTER TABLE es
+--      suyo. Ese dueño es el rol de las migraciones, que el sistema en
+--      servicio no usa (caso P11 de tests/base/prueba-aviso-modelo.py).
 --   6. Reglas de la base activadas y forzadas en las tres tablas.
 --   7. Regla restrictiva de separación en cada una.
 --   8. Privilegios: las personas pierden TRUNCATE, TRIGGER y REFERENCES en

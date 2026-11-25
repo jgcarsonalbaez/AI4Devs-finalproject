@@ -4,12 +4,17 @@
 // sesión» y «Peticiones que vienen de otro sitio» (escenario «marcas de la
 // cookie»).
 //
-// SOLO EN LOCAL: necesita la base local levantada (scripts/base/levantar-base.sh)
-// y la variable CT_BASE_LOCAL=1. La integración continua no la corre: el
-// trabajo de la aplicación no levanta la base (límite declarado; lo que la base
-// hace con el pase real sí corre allí, en tests/base/prueba-sesion.py).
+// Necesita la base local levantada (scripts/base/levantar-base.sh) y la
+// variable CT_BASE_LOCAL=1; sin ella no corre, para que `pnpm test` siga
+// sirviendo sin Docker.
 //
 //   CT_BASE_LOCAL=1 pnpm vitest run tests/integration/sesion.test.ts
+//
+// La corre también la integración continua, en el trabajo de la base, que es
+// el que levanta la base (hallazgo F de la ronda 1 del tramo 4): es la única
+// prueba que pasa por el cliente oficial, así que sin ella un cambio en ese
+// cableado —cómo se escriben y se borran las cookies— podía romperse con todo
+// en verde.
 //
 // Crea cuentas de prueba con correo de example.com y una organización de
 // prueba, que quita al terminar.

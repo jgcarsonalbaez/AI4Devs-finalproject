@@ -56,6 +56,12 @@ guarda contraseñas.
 
 Origen: HU-01.CA-1, HU-01.CA-4.
 
+*Construido en HU-01.2 (25/11/2026):* `entrar`, en `lib/sesion/vigente.ts`. Una entrada que se
+rechaza deja el navegador **sin sesión**, también cuando ya tenía una: si no se cortara, seguiría
+operando como la persona anterior. Y si la base falla al comprobar el usuario, la sesión recién
+creada **se retira** antes de informar: solo queda con sesión quien tiene un usuario comprobado y
+activo (las dos, de la revisión del tramo 4, ronda 1).
+
 #### Scenario: credenciales correctas y cuenta activa
 - **DADO** un usuario activo
 - **CUANDO** entra con su correo y su contraseña
@@ -65,6 +71,11 @@ Origen: HU-01.CA-1, HU-01.CA-4.
 - **DADO** un usuario con `activo` en falso
 - **CUANDO** entra con su correo y su contraseña correctos
 - **ENTONCES** no queda con sesión y ve el mismo mensaje que ante credenciales incorrectas
+
+#### Scenario: entrada rechazada en un navegador que ya tenía sesión
+- **DADO** un navegador con la sesión de una persona abierta
+- **CUANDO** se intenta entrar con las credenciales de otra y se rechazan
+- **ENTONCES** el navegador queda sin sesión: la anterior no sigue sirviendo
 
 ### Requirement: Mensaje único ante credenciales incorrectas
 
@@ -119,12 +130,15 @@ condiciones de una sesión vigente:
    sistema, no el servicio (D-69). El momento de entrada es el que el servicio anota en el pase al
    entrar con contraseña, que se conserva cuando la sesión se renueva (prueba P5 de HU-01.6). Si el
    pase no trae ese momento, la condición no se cumple: ante la duda, la sesión vence. Si trae
-   varios, vale el más antiguo, por la misma razón. Un día son 24 horas: el plazo no depende de la
-   zona horaria ni de los cambios de horario (D-104).
+   varios, vale el más antiguo, por la misma razón; y si alguno de ellos no se puede leer, tampoco
+   hay momento de entrada: no se sabría cuál es el más antiguo (D-105). Un momento posterior a la
+   hora de la petición tampoco da vigencia, sin tolerancia de desfase: un reloj adelantado la
+   alargaría tanto como el adelanto. Un día son 24 horas: el plazo no depende de la zona horaria ni
+   de los cambios de horario (D-104).
 
 Si falla cualquiera, la sesión se cierra en el servicio y la petición se trata como sin sesión.
 
-Origen: HU-01.CA-5, HU-01.CA-6, D-60, D-69, D-76, D-104.
+Origen: HU-01.CA-5, HU-01.CA-6, D-60, D-69, D-76, D-104, D-105.
 
 **Decidido aquí:** `sesion_dias` es un valor por organización y rige en cuanto cambia. No lleva
 «desde el día siguiente»: esa regla es del margen y del intervalo (RF-14).
@@ -136,7 +150,14 @@ falla una condición, cierra en el servicio la sesión de ese navegador (alcance
 las demás es HU-01.CA-11, fuera de esta entrega. Lo prueban `tests/unit/sesion.test.ts`, con
 reloj controlado, y `tests/base/prueba-sesion.py`, con el pase real. **Límite declarado:** un
 error de la base al leer el usuario no cierra la sesión; la petición falla con mensaje nuestro.
-Cerrarla por una falla pasajera sacaría a todas las personas a la vez.
+Cerrarla por una falla pasajera sacaría a todas las personas a la vez. En la entrada es al
+contrario: ahí la sesión acaba de crearse y, si no se pudo comprobar el usuario, se retira
+(revisión del tramo 4, ronda 1). **Segundo límite declarado:** si el servicio rechaza el corte
+automático o no contesta, la cookie se queda en el navegador y ese error no sale a quien pregunta.
+No queda sesión utilizable —cada petición vuelve a comprobar las tres condiciones y a intentar el
+corte—, pero volvería a servir si la cuenta se reactiva dentro del plazo. Las dos capas, el código
+y la regla `es_mi_organizacion` de la base, leen el momento de entrada igual (migración
+`20261125185000_vigencia_del_pase`).
 
 #### Scenario: se vuelve a abrir dentro del plazo
 - **DADO** que una persona entró hace menos de `sesion_dias` días y no cerró su sesión
@@ -158,6 +179,17 @@ Cerrarla por una falla pasajera sacaría a todas las personas a la vez.
 - **CUANDO** el valor de su organización pasa a 1 y ella hace una petición
 - **ENTONCES** se rechaza: el valor se lee en cada petición, no se copia al entrar
 
+#### Scenario: una entrada con contraseña con el momento ilegible
+- **DADO** un pase con dos entradas con contraseña, una reciente y otra cuyo momento no se puede leer
+- **CUANDO** la persona hace una petición
+- **ENTONCES** se rechaza, la sesión queda cerrada y llega a la pantalla de entrada: sin ese momento
+  no se sabe cuál es la entrada más antigua (D-105)
+
+#### Scenario: un momento de entrada en el futuro
+- **DADO** un pase cuyo momento de entrada con contraseña es posterior a la hora de la petición
+- **CUANDO** la persona hace una petición
+- **ENTONCES** se rechaza y la sesión queda cerrada: un momento futuro no alarga la vigencia
+
 #### Scenario: en el instante exacto del plazo
 - **DADO** una organización con `sesion_dias` en 30
 - **CUANDO** una persona hace una petición exactamente 30 días después de entrar
@@ -176,6 +208,11 @@ de inmediato.
 Origen: HU-01.CA-7. Comprobado en la prueba P2 de HU-01.6: el servicio rechaza el pase de una
 sesión cerrada cuando se le consulta.
 
+*Construido en HU-01.2 (25/11/2026):* `cerrar`, en `lib/sesion/vigente.ts`. **Si el servicio
+rechaza el cierre o no contesta, no se dice que la sesión quedó cerrada:** el pase podría seguir
+sirviendo, así que se responde con mensaje nuestro para que la persona lo vuelva a intentar
+(revisión del tramo 4, ronda 1). El motivo que diera el servicio no sale a quien pregunta.
+
 #### Scenario: cierre
 - **DADO** una persona con sesión abierta
 - **CUANDO** la cierra
@@ -185,6 +222,11 @@ sesión cerrada cuando se le consulta.
 - **DADO** que una persona cerró su sesión
 - **CUANDO** se repite una petición con el pase que tenía antes de cerrar
 - **ENTONCES** se rechaza
+
+#### Scenario: el servicio no pudo cerrarla
+- **DADO** una persona con sesión abierta
+- **CUANDO** pide cerrarla y el servicio rechaza el cierre o no contesta
+- **ENTONCES** no se le dice que quedó cerrada: ve un aviso nuestro para intentarlo de nuevo
 
 ### Requirement: Peticiones que vienen de otro sitio
 
@@ -254,7 +296,12 @@ pantallas (HU-01.3).
 - **ENTONCES** la cookie de sesión está marcada para viajar solo por conexión cifrada; si llega sin esa marca, la comprobación del despliegue (H-4) falla y H-4 no se cierra
 
 Este último no se puede probar en local, donde no hay cifrado: se comprueba en el despliegue
-(H-4), junto con las pruebas del servicio de autenticación que allí se repiten.
+(H-4), junto con las pruebas del servicio de autenticación que allí se repiten. La marca sale del
+esquema de la dirección pública leída como URL, no de comparar su texto: los esquemas no
+distinguen mayúsculas, y una dirección escrita `HTTPS://…` es tan cifrada como `https://…`. Si la
+dirección pública no se puede leer como URL, la cookie sale marcada como cifrada —el lado seguro—,
+y con esa configuración el sistema rechaza igual toda entrada y todo cierre (revisión del tramo 4,
+ronda 1).
 
 ### Requirement: Un correo, una cuenta, una organización
 

@@ -19,7 +19,19 @@ sys.path.insert(0, str(RAIZ / "scripts" / "base"))
 from base_local import psql  # noqa: E402
 
 VALIDACION = RAIZ / "supabase" / "validaciones" / "20261125170000_aviso_modelo.sql"
-PERSONAS = "privilegios de anon y authenticated sobre las tres tablas"
+PERSONAS = "privilegios de anon y authenticated, sin contar leer, sobre las tres tablas"
+REGLAS = "reglas restrictivas sobre las tres tablas"
+
+# Lo que HU-02.1 va a agregar: reglas permisivas de lectura por rol y el
+# permiso de leer. La validación de HU-06.1 no debe marcarlo como falla
+# (revisión del tramo 4, ronda 1, hallazgo I).
+LECTURA_DE_HU_02_1 = (
+    "create policy asignacion_ve_su_consultor on public.asignacion for select to authenticated "
+    "using (consultor_id = auth.uid());"
+    "create policy aviso_ve_su_consultor on public.aviso_inicio for select to authenticated using (true);"
+    "create policy cliente_ve_su_consultor on public.cliente for select to authenticated using (true);"
+    "grant select on public.cliente, public.asignacion, public.aviso_inicio to authenticated;"
+)
 
 # (nombre, desvío, None si todo debe dar OK o la fila que debe dar FALLA)
 CASOS = [
@@ -62,10 +74,12 @@ CASOS = [
      "drop policy cliente_separacion on public.cliente;"
      "create policy cliente_separacion on public.cliente as permissive for all to public "
      "using (public.es_mi_organizacion(organizacion_id)) with check (public.es_mi_organizacion(organizacion_id));",
-     "reglas sobre las tres tablas"),
-    ("N16 una regla de más que deja ver todos los avisos",
-     "create policy otra on public.aviso_inicio for select to authenticated using (true);",
-     "reglas sobre las tres tablas"),
+     REGLAS),
+    ("N16 la regla de separación del aviso deja de comparar la organización",
+     "drop policy aviso_inicio_separacion on public.aviso_inicio;"
+     "create policy aviso_inicio_separacion on public.aviso_inicio as restrictive for all to public "
+     "using (true) with check (true);", REGLAS),
+    ("P2 la lectura por rol que trae HU-02.1 no rompe esta validación", LECTURA_DE_HU_02_1, None),
     ("N17 las personas pueden insertar avisos", "grant insert on public.aviso_inicio to authenticated;", PERSONAS),
     ("N18 quien no tiene sesión puede vaciar clientes", "grant truncate on public.cliente to anon;", PERSONAS),
     ("N19 la credencial del sistema puede insertar avisos", "grant insert on public.aviso_inicio to service_role;",
@@ -77,7 +91,7 @@ FILAS = {
     "columnas de public.asignacion", "constraints de public.asignacion", "columnas de public.aviso_inicio",
     "constraints de public.aviso_inicio", "función public.dias_laborables_validos(smallint[])",
     "función public.impedir_cambio_de_aviso()", "disparadores de public.aviso_inicio",
-    "reglas de las tres tablas, activadas y forzadas", "reglas sobre las tres tablas", PERSONAS,
+    "reglas de las tres tablas, activadas y forzadas", REGLAS, PERSONAS,
     "privilegios de service_role sobre public.aviso_inicio",
 }
 

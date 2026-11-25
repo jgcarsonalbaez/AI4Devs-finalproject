@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MENSAJE_UNICO,
+  NO_SE_CERRO,
   ORIGEN_RECHAZADO,
   dentroDelPlazo,
   momentoDeEntrada,
@@ -49,6 +50,10 @@ interface Escenario {
   errorDeBase?: boolean;
   credencialesValidas?: boolean; // signInWithPassword
   paseAlEntrar?: string;
+  // Lo que hace signOut cuando se le pide cerrar: devolver error en el campo
+  // que su contrato declara, o fallar la llamada. En los dos casos la cookie
+  // que tuviera el navegador se queda (revisión del tramo 4, ronda 1).
+  cierreFalla?: "error" | "excepcion";
 }
 
 // Cliente falso: imita del cliente oficial lo que usa el código (auth y
@@ -92,6 +97,8 @@ function clienteFalso(e: Escenario) {
       },
       async signOut(o: { scope: "local" }) {
         anotado.signOut.push(o);
+        if (e.cierreFalla === "excepcion") throw new Error("no hubo respuesta del servicio");
+        if (e.cierreFalla === "error") return { error: { message: "no se pudo cerrar la sesión" } };
         guardado = null;
         return { error: null };
       },
@@ -144,8 +151,15 @@ describe("momentoDeEntrada: el que el servicio anota en el pase al entrar con co
       expect(momentoDeEntrada({ amr: [{ method: "password", timestamp }] })).toBeNull();
     }
   });
-  it("N4 una entrada mal formada no tapa a una buena, y la buena sigue contando", () => {
-    const amr = [{ method: "password", timestamp: "x" }, "basura", ...entradaCon(hace(DIA))];
+  it("N4 una entrada con contraseña cuyo momento no se puede leer impide saber cuál es la más antigua: vence (D-105)", () => {
+    const amr = [{ method: "password", timestamp: "x" }, ...entradaCon(hace(DIA))];
+    expect(momentoDeEntrada({ amr })).toBeNull();
+    // Sin momento, o con un momento de otra forma, igual: no se descarta esa
+    // entrada como si no existiera.
+    expect(momentoDeEntrada({ amr: [{ method: "password" }, ...entradaCon(hace(DIA))] })).toBeNull();
+  });
+  it("P17 lo que no es una entrada con contraseña no estorba: basura en la lista y otro método no tapan a la buena", () => {
+    const amr = ["basura", { method: "otp", timestamp: "x" }, null, ...entradaCon(hace(DIA))];
     expect(momentoDeEntrada({ amr })).toEqual(new Date(segundos(hace(DIA)) * 1000));
   });
 });
@@ -171,6 +185,12 @@ describe("dentroDelPlazo: un día son 24 horas, y el instante exacto todavía va
       expect(dentroDelPlazo(hace(HORA), dias, AHORA)).toBe(false);
     }
     expect(dentroDelPlazo(new Date("no es fecha"), 30, AHORA)).toBe(false);
+  });
+  it("N30 una entrada posterior a la hora de la petición responde no: no alarga la vigencia", () => {
+    expect(dentroDelPlazo(new Date(AHORA.getTime() + 1000), 30, AHORA)).toBe(false);
+    expect(dentroDelPlazo(new Date(AHORA.getTime() + 10 * DIA), 1, AHORA)).toBe(false);
+    // En el instante exacto de la petición todavía vale: el límite es «después».
+    expect(dentroDelPlazo(AHORA, 30, AHORA)).toBe(true);
   });
 });
 
@@ -215,6 +235,14 @@ describe("opcionesDeCookie: la cookie la escribe el sistema, sin que la lea la p
   it("P9 en local, sin cifrado, no se marca como cifrada (se comprueba en el despliegue, H-4)", () => {
     expect(opcionesDeCookie({}, "http://localhost:3000").secure).toBe(false);
     expect(opcionesDeCookie({}, "http://localhost:3000").httpOnly).toBe(true);
+  });
+  it("P18 la marca sale del esquema de la dirección, no de su texto: en mayúsculas también es cifrada", () => {
+    expect(opcionesDeCookie({}, "HTTPS://ct.example.com").secure).toBe(true);
+    expect(opcionesDeCookie({}, "HttpS://CT.EXAMPLE.COM/").secure).toBe(true);
+  });
+  it("N31 sin una dirección pública que se pueda leer, la cookie sale marcada como cifrada: el lado seguro", () => {
+    expect(opcionesDeCookie({}, "no es una dirección").secure).toBe(true);
+    expect(opcionesDeCookie({}, "").secure).toBe(true);
   });
 });
 
@@ -302,6 +330,19 @@ describe("sesionVigente: las tres condiciones, en cada petición, en un solo lug
     await expect(sesionVigente(cliente, AHORA)).rejects.toThrow("No se pudo comprobar la sesión");
     expect(anotado.signOut).toEqual([]);
   });
+  it("N32 el momento de entrada del pase está en el futuro: la sesión vence y se cierra", async () => {
+    const futuro = pase({ sub: YO, amr: [{ method: "password", timestamp: segundos(AHORA) + 3600 }] });
+    const { cliente, anotado } = clienteFalso({ sesion: futuro, fila: filaActiva() });
+    expect(await sesionVigente(cliente, AHORA)).toBeNull();
+    expect(anotado.signOut).toEqual([{ scope: "local" }]);
+  });
+  it("N35 si el corte en el servicio falla, la petición queda sin sesión igual y el error no sale a quien pregunta", async () => {
+    for (const cierreFalla of ["error", "excepcion"] as const) {
+      const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(31 * DIA), fila: filaActiva(30), cierreFalla });
+      expect(await sesionVigente(cliente, AHORA)).toBeNull();
+      expect(anotado.signOut).toEqual([{ scope: "local" }]);
+    }
+  });
 });
 
 describe("entrar: solo con cuenta activa, con un mensaje único y desde el propio sitio", () => {
@@ -346,6 +387,26 @@ describe("entrar: solo con cuenta activa, con un mensaje único y desde el propi
       expect(anotado.signIn).toEqual([]);
     }
   });
+  it("N36 con una sesión ya abierta en el navegador, una entrada rechazada la deja sin sesión", async () => {
+    const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(HORA), credencialesValidas: false });
+    expect(await entrar(cliente, credenciales, SITIO, SITIO, AHORA)).toEqual({
+      estado: "rechazada",
+      codigo: 401,
+      mensaje: MENSAJE_UNICO,
+    });
+    expect(anotado.signOut).toEqual([{ scope: "local" }]);
+    expect(await cliente.auth.getSession()).toEqual({ data: { session: null }, error: null });
+  });
+  it("N37 si la base falla al comprobar el usuario, la sesión recién creada se retira y se informa", async () => {
+    const { cliente, anotado } = clienteFalso({
+      credencialesValidas: true,
+      paseAlEntrar: paseDeHace(0),
+      errorDeBase: true,
+    });
+    await expect(entrar(cliente, credenciales, SITIO, SITIO, AHORA)).rejects.toThrow("No se pudo comprobar la sesión");
+    expect(anotado.signOut).toEqual([{ scope: "local" }]);
+    expect(await cliente.auth.getSession()).toEqual({ data: { session: null }, error: null });
+  });
   it("P15 el mensaje único está en español y es uno solo", () => {
     expect(MENSAJE_UNICO).toMatch(/correo|contraseña/);
   });
@@ -363,5 +424,14 @@ describe("cerrar: el pase deja de servir, y solo desde el propio sitio", () => {
       expect(await cerrar(cliente, origen, SITIO)).toEqual(ORIGEN_RECHAZADO);
       expect(anotado.signOut).toEqual([]);
     }
+  });
+  it("N33 el servicio rechaza el cierre: no se dice «cerrada» lo que no se cerró", async () => {
+    const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "error" });
+    expect(await cerrar(cliente, SITIO, SITIO)).toEqual(NO_SE_CERRO);
+    expect(anotado.signOut).toEqual([{ scope: "local" }]);
+  });
+  it("N34 la llamada de cierre falla: el mismo aviso nuestro, y el error del servicio no sale a quien pregunta", async () => {
+    const { cliente } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "excepcion" });
+    expect(await cerrar(cliente, SITIO, SITIO)).toEqual(NO_SE_CERRO);
   });
 });

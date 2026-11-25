@@ -137,6 +137,24 @@ def main() -> int:
                                 {"method": "password", "timestamp": int(time.time()) - 60}]}
         d = cuantos(dos)
         caso("N11 con dos entradas con contraseña cuenta la más antigua (D-104): no lo ve", d == "0", d)
+        ilegible = {**bueno, "amr": [{"method": "password", "timestamp": "x"},
+                                     {"method": "password", "timestamp": int(time.time()) - 60}]}
+        d = cuantos(ilegible)
+        caso("N14 una entrada con contraseña cuyo momento no se puede leer no deja saber cuál es la más "
+             "antigua, y la sesión vence (D-105): no lo ve", d == "0", d)
+        sin_momento = {**bueno, "amr": [{"method": "password"},
+                                        {"method": "password", "timestamp": int(time.time()) - 60}]}
+        d = cuantos(sin_momento)
+        caso("N15 lo mismo cuando la entrada con contraseña viene sin momento: no lo ve", d == "0", d)
+        otro_metodo = {**bueno, "amr": [{"method": "otp", "timestamp": "x"}, "basura",
+                                        {"method": "password", "timestamp": int(time.time()) - 60}]}
+        d = cuantos(otro_metodo)
+        caso("P8 control de N14 y N15: lo que no es una entrada con contraseña no estorba, y sí lo ve",
+             d == "1", d)
+        futura = {**bueno, "amr": [{"method": "password", "timestamp": int(time.time()) + 3600}]}
+        d = cuantos(futura)
+        caso("N16 un momento de entrada posterior a la hora de la petición no alarga la vigencia: no lo ve",
+             d == "0", d)
 
         # ---- Cerrar con alcance local: ese pase deja de servir; las demás sesiones siguen.
         sesion_a = entrar_completo(correo_1, clave_1)["access_token"]

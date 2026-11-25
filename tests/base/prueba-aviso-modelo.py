@@ -187,6 +187,18 @@ def main() -> int:
         caso("N25 no se quita la asignación de un aviso: el aviso no puede quedar huérfano", not ok and "aviso_inicio_asignacion_fkey" in d, d)
         ok, d = corre("select count(*) from public.aviso_inicio;", antes=creado)
         caso("P10 control de N22 a N24: el aviso se puede leer", ok and d == "1", d)
+        # Hasta dónde llega la garantía: el disparador rechaza toda escritura,
+        # de cualquier rol, también del dueño de la tabla. Lo que no puede es
+        # impedir que el dueño apague antes el propio disparador: ALTER TABLE es
+        # suyo. Ese dueño es el rol de las migraciones, que el sistema en
+        # servicio no usa, y queda dentro del límite de confianza. Este caso
+        # deja escrito ese límite en vez de afirmar más de lo que hay
+        # (revisión del tramo 4, ronda 1, hallazgo H).
+        ok, d = corre("alter table public.aviso_inicio disable trigger aviso_inicio_no_se_cambia;\n"
+                      "delete from public.aviso_inicio;\n"
+                      "select count(*) from public.aviso_inicio;", antes=creado)
+        caso("P11 límite declarado: el dueño de la tabla puede apagar el disparador y entonces el cambio pasa; "
+             "la garantía cubre toda escritura, no el apagado del mecanismo", ok and d == "0", d)
 
         for rol in ("service_role", "authenticated", "anon"):
             ok, d = corre(aviso() + ";", rol=rol)

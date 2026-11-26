@@ -60,7 +60,12 @@ Origen: HU-01.CA-1, HU-01.CA-4.
 rechaza deja el navegador **sin sesión**, también cuando ya tenía una: si no se cortara, seguiría
 operando como la persona anterior. Y si la base falla al comprobar el usuario, la sesión recién
 creada **se retira** antes de informar: solo queda con sesión quien tiene un usuario comprobado y
-activo (las dos, de la revisión del tramo 4, ronda 1).
+activo (las dos, de la revisión del tramo 4, ronda 1). **Rechazada quiere decir rechazada por el
+servicio** —responde con el estado de su API—: si lo que falla es el servicio mismo, no se corta
+nada, porque una falla pasajera sacaría de su sesión a quien ya estaba dentro (revisión interna de
+esa ronda). **Límite declarado:** quien lo intenta ve el mensaje único en los dos casos, porque lo
+exige «Mensaje único ante credenciales incorrectas»; distinguir una indisponibilidad del servicio
+en la pantalla es de HU-01.3.
 
 #### Scenario: credenciales correctas y cuenta activa
 - **DADO** un usuario activo
@@ -74,8 +79,14 @@ activo (las dos, de la revisión del tramo 4, ronda 1).
 
 #### Scenario: entrada rechazada en un navegador que ya tenía sesión
 - **DADO** un navegador con la sesión de una persona abierta
-- **CUANDO** se intenta entrar con las credenciales de otra y se rechazan
+- **CUANDO** se intenta entrar con las credenciales de otra y el servicio las rechaza
 - **ENTONCES** el navegador queda sin sesión: la anterior no sigue sirviendo
+
+#### Scenario: el servicio de autenticación no contesta durante una entrada
+- **DADO** un navegador con la sesión de una persona abierta
+- **CUANDO** se intenta entrar y el servicio de autenticación no contesta
+- **ENTONCES** no se entra y la sesión que ya tenía sigue abierta: una falla pasajera no saca a
+  quien estaba dentro
 
 ### Requirement: Mensaje único ante credenciales incorrectas
 
@@ -156,8 +167,11 @@ contrario: ahí la sesión acaba de crearse y, si no se pudo comprobar el usuari
 automático o no contesta, la cookie se queda en el navegador y ese error no sale a quien pregunta.
 No queda sesión utilizable —cada petición vuelve a comprobar las tres condiciones y a intentar el
 corte—, pero volvería a servir si la cuenta se reactiva dentro del plazo. Las dos capas, el código
-y la regla `es_mi_organizacion` de la base, leen el momento de entrada igual (migración
-`20261125185000_vigencia_del_pase`).
+y la regla `es_mi_organizacion` de la base, leen el momento de entrada igual para las formas que
+emite el servicio (migración `20261125185000_vigencia_del_pase`). **Límite:** no son idénticas para
+cualquier forma imaginable —un número con parte decimal nula, que el servicio no emite, el código
+lo aceptaría y la base no—; la diferencia cae del lado seguro, porque manda la capa más estricta
+(revisión interna de la ronda 1 del tramo 4).
 
 #### Scenario: se vuelve a abrir dentro del plazo
 - **DADO** que una persona entró hace menos de `sesion_dias` días y no cerró su sesión
@@ -208,10 +222,17 @@ de inmediato.
 Origen: HU-01.CA-7. Comprobado en la prueba P2 de HU-01.6: el servicio rechaza el pase de una
 sesión cerrada cuando se le consulta.
 
-*Construido en HU-01.2 (25/11/2026):* `cerrar`, en `lib/sesion/vigente.ts`. **Si el servicio
-rechaza el cierre o no contesta, no se dice que la sesión quedó cerrada:** el pase podría seguir
-sirviendo, así que se responde con mensaje nuestro para que la persona lo vuelva a intentar
-(revisión del tramo 4, ronda 1). El motivo que diera el servicio no sale a quien pregunta.
+*Construido en HU-01.2 (25/11/2026):* `cerrar`, en `lib/sesion/vigente.ts`. El cliente oficial, con
+alcance local, **borra la sesión del navegador antes de pedir la revocación al servicio**, así que
+un error suyo no significa que la persona siga dentro. Por eso, ante un error, se comprueba si
+queda sesión: si no queda, está cerrada; si queda, o no se puede comprobar, se responde con mensaje
+nuestro y no se afirma el cierre (revisión del tramo 4, ronda 1, corregido por su revisión
+interna). El motivo que diera el servicio no sale a quien pregunta.
+
+**Límite declarado:** cuando el cierre local se hizo pero la revocación en el servicio falló, el
+pase anterior puede seguir siendo válido en el servicio hasta que caduque. Este navegador ya no lo
+tiene; quien tuviera una copia podría usarlo mientras el usuario esté activo y dentro del plazo.
+Revocar a la fuerza, o avisar de que la revocación quedó pendiente, es una característica futura.
 
 #### Scenario: cierre
 - **DADO** una persona con sesión abierta
@@ -223,9 +244,15 @@ sirviendo, así que se responde con mensaje nuestro para que la persona lo vuelv
 - **CUANDO** se repite una petición con el pase que tenía antes de cerrar
 - **ENTONCES** se rechaza
 
-#### Scenario: el servicio no pudo cerrarla
+#### Scenario: el servicio no revocó el pase, pero la sesión del navegador se cerró
 - **DADO** una persona con sesión abierta
-- **CUANDO** pide cerrarla y el servicio rechaza el cierre o no contesta
+- **CUANDO** pide cerrarla, su navegador queda sin sesión y el servicio devuelve un error de la revocación
+- **ENTONCES** su sesión queda cerrada y llega a la pantalla de entrada; lo que puede no haberse
+  revocado es el pase en el servicio (límite declarado)
+
+#### Scenario: el cierre falla y la sesión sigue abierta
+- **DADO** una persona con sesión abierta
+- **CUANDO** pide cerrarla, el cierre falla y su navegador sigue con la sesión
 - **ENTONCES** no se le dice que quedó cerrada: ve un aviso nuestro para intentarlo de nuevo
 
 ### Requirement: Peticiones que vienen de otro sitio
@@ -256,7 +283,8 @@ impide que la lea el código de la página y sin la de conexión cifrada. Por es
 las marcas de toda cookie antes de enviarla (`lib/sesion/cliente.ts`): que no la lea la página,
 sin dominio aunque el cliente lo pida y, si la dirección pública es cifrada, solo por conexión
 cifrada. Lo prueban `tests/unit/sesion.test.ts` y, con el cliente oficial y la base local,
-`tests/integration/sesion.test.ts`, que corre solo en local. La comprobación del origen para entrar
+`tests/integration/sesion.test.ts`, que necesita la base levantada y corre tanto en la máquina como
+en la integración continua, en su trabajo de la base. La comprobación del origen para entrar
 y cerrar está en `lib/sesion/reglas.ts`; la de las operaciones que cambian datos llega con cada
 operación (HU-06.3), y la que impide mostrar las páginas en un marco de otro sitio, con las
 pantallas (HU-01.3).

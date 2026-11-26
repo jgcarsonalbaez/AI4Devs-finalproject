@@ -137,4 +137,8 @@ jobs:
       - name: La sesión con el cliente oficial y la base local (HU-01.2)
         env:
           CT_BASE_LOCAL: "1"
+          # Aquí la suite es obligatoria: si la primera variable faltara, se
+          # saltaría y el trabajo saldría en verde sin haber probado nada. Con
+          # esta, el caso I7 hace fallar ese verde falso.
+          CT_INTEGRACION_EXIGIDA: "1"
         run: pnpm vitest run tests/integration/sesion.test.ts

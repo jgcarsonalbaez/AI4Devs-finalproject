@@ -15,9 +15,12 @@ export const ORIGEN_RECHAZADO = Object.freeze({
 } as const);
 
 /**
- * Respuesta a un cierre que el servicio no confirmó: no se dice «cerrada» lo
- * que no se pudo cerrar, porque el pase podría seguir sirviendo. Quien pide
- * cerrar lo vuelve a intentar (revisión del tramo 4, ronda 1).
+ * Respuesta a un cierre que falló **y** dejó la sesión viva en el navegador,
+ * o que no se pudo comprobar: no se dice «cerrada» lo que no se vio cerrado.
+ * Un error del servicio por sí solo no llega aquí —con alcance local la
+ * sesión del navegador ya está borrada cuando el servicio contesta—, así que
+ * este aviso solo sale cuando de verdad queda sesión (revisión del tramo 4,
+ * ronda 1, y su revisión interna).
  */
 export const NO_SE_CERRO = Object.freeze({
   estado: "no-cerrada",

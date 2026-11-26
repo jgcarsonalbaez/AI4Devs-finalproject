@@ -82,19 +82,34 @@ priv as (
   from (values ('anon'), ('authenticated'), ('service_role')) r(rol),
        (values ('public.cliente'), ('public.asignacion'), ('public.aviso_inicio')) x(tabla)
 ),
--- Lo mismo, sin contar el de leer: el permiso de leer lo da HU-02.1 («Reglas
--- por rol en la base»), y esta fila no debe cambiar cuando llegue. Lo que
--- HU-02.1 no toca es escribir —la columna «Cambia» de esa tabla dice «nadie»
--- en esta entrega— ni TRUNCATE, TRIGGER y REFERENCES (CLAUDE.md §5).
+-- Lo mismo para authenticated, sin contar el de leer: ese se lo da HU-02.1
+-- («Reglas por rol en la base»), y esta fila no debe cambiar cuando llegue. Lo
+-- que HU-02.1 no toca es escribir —la columna «Cambia» de esa tabla dice
+-- «nadie» en esta entrega— ni TRUNCATE, TRIGGER y REFERENCES (CLAUDE.md §5).
+-- A anon no le da nada, así que a anon se le siguen mirando los siete, leer
+-- incluido (revisión interna de la ronda 1 del tramo 4: al quitar leer de
+-- todos, un permiso de lectura para quien no tiene sesión dejaba de verse).
 priv_sin_leer as (
-  select r.rol, x.tabla,
+  select 'authenticated'::text as rol, x.tabla,
          coalesce((select string_agg(p.priv, ',' order by p.priv)
                    from (values ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('TRIGGER'),
                                 ('REFERENCES')) p(priv)
-                   where to_regclass(x.tabla) is not null and has_table_privilege(r.rol, x.tabla, p.priv)),
+                   where to_regclass(x.tabla) is not null
+                     and has_table_privilege('authenticated', x.tabla, p.priv)),
                   'ninguno') as tiene
-  from (values ('anon'), ('authenticated')) r(rol),
-       (values ('public.cliente'), ('public.asignacion'), ('public.aviso_inicio')) x(tabla)
+  from (values ('public.cliente'), ('public.asignacion'), ('public.aviso_inicio')) x(tabla)
+),
+-- Reglas permisivas que alcanzan a quien no tiene sesión: ninguna, ni ahora ni
+-- después. Las de HU-02.1 son para authenticated, así que esta fila tampoco
+-- debe cambiar cuando lleguen.
+pol_sin_sesion as (
+  select c.relname::text as tabla, p.polname::text as nombre
+  from pg_policy p
+  join pg_class c on c.oid = p.polrelid
+  join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+  where c.relname in (select t from tablas) and p.polpermissive
+    and exists (select 1 from unnest(p.polroles) r
+                where r = 0 or pg_get_userbyid(r)::text = 'anon')
 ),
 filas(orden, objeto, esperado, encontrado) as (
   select 1, 'tablas cliente, asignacion y aviso_inicio',
@@ -178,20 +193,28 @@ filas(orden, objeto, esperado, encontrado) as (
          coalesce((select string_agg(tabla || '.' || nombre || ': ' || def, ' · ' order by tabla, nombre) from pol),
                   '(ninguna)')
   union all
-  -- Las personas: sin escribir y sin TRUNCATE, TRIGGER ni REFERENCES
-  -- (CLAUDE.md §5). El permiso de leer no se mira aquí: lo da HU-02.1.
-  select 13, 'privilegios de anon y authenticated, sin contar leer, sobre las tres tablas',
+  -- Quien no tiene sesión: nada de nada, leer incluido. Quien la tiene: sin
+  -- escribir y sin TRUNCATE, TRIGGER ni REFERENCES (CLAUDE.md §5); el permiso
+  -- de leer no se le mira aquí, lo da HU-02.1.
+  select 13, 'privilegios de anon (todos) y de authenticated (sin contar leer) sobre las tres tablas',
          'anon public.asignacion: ninguno · anon public.aviso_inicio: ninguno · anon public.cliente: ninguno · '
          'authenticated public.asignacion: ninguno · authenticated public.aviso_inicio: ninguno · '
          'authenticated public.cliente: ninguno',
          (select string_agg(rol || ' ' || tabla || ': ' || tiene, ' · ' order by rol, tabla)
-          from priv_sin_leer)
+          from (select rol, tabla, tiene from priv where rol = 'anon'
+                union all
+                select rol, tabla, tiene from priv_sin_leer) t)
   union all
   -- La credencial del sistema no inserta avisos, ni los edita, quita o vacía
   -- (spec aviso-inicio, «Datos»): se lo niega el permiso, no la regla.
   select 14, 'privilegios de service_role sobre public.aviso_inicio',
          'ninguno',
          (select tiene from priv where rol = 'service_role' and tabla = 'public.aviso_inicio')
+  union all
+  select 15, 'reglas permisivas que alcanzan a quien no tiene sesión',
+         '(ninguna)',
+         coalesce((select string_agg(tabla || '.' || nombre, ' · ' order by tabla, nombre) from pol_sin_sesion),
+                  '(ninguna)')
 )
 select objeto, esperado, encontrado,
        case when esperado = encontrado then 'OK' else 'FALLA' end as estado

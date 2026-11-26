@@ -19,8 +19,9 @@ sys.path.insert(0, str(RAIZ / "scripts" / "base"))
 from base_local import psql  # noqa: E402
 
 VALIDACION = RAIZ / "supabase" / "validaciones" / "20261125170000_aviso_modelo.sql"
-PERSONAS = "privilegios de anon y authenticated, sin contar leer, sobre las tres tablas"
+PERSONAS = "privilegios de anon (todos) y de authenticated (sin contar leer) sobre las tres tablas"
 REGLAS = "reglas restrictivas sobre las tres tablas"
+SIN_SESION = "reglas permisivas que alcanzan a quien no tiene sesión"
 
 # Lo que HU-02.1 va a agregar: reglas permisivas de lectura por rol y el
 # permiso de leer. La validación de HU-06.1 no debe marcarlo como falla
@@ -80,6 +81,11 @@ CASOS = [
      "create policy aviso_inicio_separacion on public.aviso_inicio as restrictive for all to public "
      "using (true) with check (true);", REGLAS),
     ("P2 la lectura por rol que trae HU-02.1 no rompe esta validación", LECTURA_DE_HU_02_1, None),
+    ("N21 quien no tiene sesión puede leer avisos", "grant select on public.aviso_inicio to anon;", PERSONAS),
+    ("N22 una regla permisiva deja ver clientes a quien no tiene sesión",
+     "create policy fuga on public.cliente for select to anon using (true);", SIN_SESION),
+    ("N23 una regla permisiva para todos los roles alcanza también a quien no tiene sesión",
+     "create policy fuga on public.aviso_inicio for select to public using (true);", SIN_SESION),
     ("N17 las personas pueden insertar avisos", "grant insert on public.aviso_inicio to authenticated;", PERSONAS),
     ("N18 quien no tiene sesión puede vaciar clientes", "grant truncate on public.cliente to anon;", PERSONAS),
     ("N19 la credencial del sistema puede insertar avisos", "grant insert on public.aviso_inicio to service_role;",
@@ -92,7 +98,7 @@ FILAS = {
     "constraints de public.aviso_inicio", "función public.dias_laborables_validos(smallint[])",
     "función public.impedir_cambio_de_aviso()", "disparadores de public.aviso_inicio",
     "reglas de las tres tablas, activadas y forzadas", REGLAS, PERSONAS,
-    "privilegios de service_role sobre public.aviso_inicio",
+    "privilegios de service_role sobre public.aviso_inicio", SIN_SESION,
 }
 
 

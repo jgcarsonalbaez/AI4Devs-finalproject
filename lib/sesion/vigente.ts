@@ -68,11 +68,13 @@ function contenidoDelPase(pase: string): Record<string, unknown> | null {
  * Cierra la sesión de este navegador en el servicio; lo que responda no cambia
  * que la petición queda sin sesión, porque una condición ya falló.
  *
- * Límite declarado (hallazgo A de la ronda 1 del tramo 4): si el servicio
- * rechaza el cierre o no responde, la cookie se queda en el navegador y ese
- * error no sale a quien pregunta. No queda sesión utilizable: cada petición
- * vuelve a comprobar las tres condiciones y vuelve a intentar el corte. Lo que
- * sí cambiaría es volver a servir si la cuenta se reactiva dentro del plazo.
+ * Límite declarado (hallazgo A de la ronda 1 del tramo 4): el error del
+ * servicio no sale a quien pregunta. Con alcance local el cliente oficial
+ * borra la sesión del navegador antes de pedir la revocación, así que lo que
+ * puede quedar sin revocar es el pase en el servicio, no el cierre local; si
+ * ni eso se consigue, cada petición vuelve a comprobar las tres condiciones y
+ * a intentar el corte. Lo que sí volvería a servir es ese pase si la cuenta se
+ * reactiva dentro del plazo.
  */
 async function cortar<Q extends Filtrable<Q> & UnaFila>(cliente: ClienteDeSesion<Q>): Promise<null> {
   try {
@@ -130,6 +132,22 @@ export type ResultadoDeEntrar =
 const NO_ENTRA = { estado: "rechazada", codigo: 401, mensaje: MENSAJE_UNICO } as const;
 
 /**
+ * Si el error de la entrada es un rechazo del servicio a esas credenciales, y
+ * no una falla del servicio. El cliente oficial responde con el estado de la
+ * API cuando rechaza (400, 401, 422) y sin estado cuando no pudo llegar. Sin
+ * estado, o con uno de 500 en adelante, no se da por rechazada la entrada:
+ * ante la duda no se toca la sesión que el navegador ya tenía.
+ *
+ * Límite declarado: quien recibe el mensaje único no distingue un rechazo de
+ * una falla del servicio. Lo exige el mensaje único (HU-01.CA-3, D-59), y
+ * decirlo aparte queda para la pantalla de entrada (HU-01.3).
+ */
+function rechazoDeCredenciales(error: unknown): boolean {
+  const estado = (error as { status?: unknown } | null)?.status;
+  return typeof estado === "number" && estado >= 400 && estado < 500;
+}
+
+/**
  * Entra con correo y contraseña. Solo desde el propio sitio, y solo queda con
  * sesión quien tiene una cuenta cuyo usuario está activo. Ante credenciales
  * incorrectas, correo sin cuenta, cuenta desactivada o cuenta sin usuario, el
@@ -150,8 +168,10 @@ export async function entrar<Q extends Filtrable<Q> & UnaFila>(
     // El navegador puede traer una sesión de antes: lo que este requisito
     // promete es que una entrada rechazada lo deja sin sesión, y si no se
     // corta sigue operando como la persona anterior (hallazgo C de la ronda 1
-    // del tramo 4).
-    await cortar(cliente);
+    // del tramo 4). Pero solo cuando el servicio rechazó las credenciales: si
+    // lo que falló es el servicio mismo, cortar sacaría de su sesión a quien
+    // ya estaba dentro (revisión interna de esa ronda).
+    if (!error || rechazoDeCredenciales(error)) await cortar(cliente);
     return NO_ENTRA;
   }
   let identidad: Identidad | null;
@@ -170,10 +190,21 @@ export async function entrar<Q extends Filtrable<Q> & UnaFila>(
 
 /**
  * Cierra la sesión de este navegador: el pase que tenía deja de servir. Solo
- * desde el propio sitio. Si el servicio rechaza el cierre o la llamada falla,
- * no se dice «cerrada» lo que no se cerró: el pase podría seguir sirviendo, y
- * quien pidió cerrar tiene que saberlo para volver a intentarlo (hallazgo A de
- * la ronda 1 del tramo 4).
+ * desde el propio sitio.
+ *
+ * Un error del cierre no basta para decir que la sesión sigue abierta: el
+ * cliente oficial, con alcance local, **borra la sesión del navegador antes de
+ * pedir la revocación al servicio**, así que su error suele ser de la
+ * revocación y no del cierre. Por eso, si hay error, se comprueba si queda
+ * sesión: si no queda, la sesión está cerrada; si queda —o no se puede
+ * comprobar—, no se dice «cerrada» (hallazgo A de la ronda 1 del tramo 4,
+ * corregido por su revisión interna).
+ *
+ * **Límite declarado:** cuando el cierre local se hizo pero la revocación en
+ * el servicio falló, el pase anterior puede seguir siendo válido en el
+ * servicio hasta que caduque. Este navegador ya no lo tiene; quien tuviera una
+ * copia podría usarlo. Mientras el usuario esté activo y dentro del plazo, las
+ * tres condiciones de «Sesión vigente» lo darían por bueno.
  */
 export async function cerrar<Q extends Filtrable<Q> & UnaFila>(
   cliente: ClienteDeSesion<Q>,
@@ -183,10 +214,17 @@ export async function cerrar<Q extends Filtrable<Q> & UnaFila>(
   if (!vieneDelPropioSitio(origen, direccionPublica)) return ORIGEN_RECHAZADO;
   try {
     const { error } = await cliente.auth.signOut({ scope: "local" });
-    if (error) return NO_SE_CERRO;
+    if (!error) return { estado: "cerrada" };
   } catch {
-    // El motivo del servicio no sale a quien pregunta: el mensaje es nuestro.
+    // La llamada falló; aun así la sesión local pudo quedar borrada. Se
+    // comprueba igual que en el caso del error devuelto.
+  }
+  try {
+    const { data } = await cliente.auth.getSession();
+    if (!data?.session?.access_token) return { estado: "cerrada" };
+  } catch {
+    // No se puede comprobar: no se afirma un cierre que no se vio.
     return NO_SE_CERRO;
   }
-  return { estado: "cerrada" };
+  return NO_SE_CERRO;
 }

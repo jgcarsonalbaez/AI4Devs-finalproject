@@ -13,9 +13,11 @@ es la del cliente).
   distinto del consultor; consultor, supervisor y cliente de su misma
   organización.
 - aviso_inicio: uno por asignación y día; de una asignación de su misma
-  organización; nadie lo edita ni lo quita, tampoco el dueño de la tabla ni
-  la credencial del sistema; ninguna identidad con la que se conecte el
-  sistema puede insertarlo.
+  organización; nadie lo edita ni lo quita en ninguna escritura, tampoco el
+  dueño de la tabla ni la credencial del sistema; ninguna identidad con la que
+  se conecte el sistema puede insertarlo ni apagar el bloqueo. Hasta ahí llega:
+  el dueño de la tabla sí puede apagar el disparador antes de escribir, y es el
+  rol de las migraciones, que el sistema en servicio no usa (P11 y N29).
 
 Fuera de este ticket, y por eso sin casos aquí: los roles de la asignación
 (usuario_rol, HU-02.1), el registro del aviso con su hora y su clasificación
@@ -199,6 +201,15 @@ def main() -> int:
                       "select count(*) from public.aviso_inicio;", antes=creado)
         caso("P11 límite declarado: el dueño de la tabla puede apagar el disparador y entonces el cambio pasa; "
              "la garantía cubre toda escritura, no el apagado del mecanismo", ok and d == "0", d)
+        # Y hasta dónde NO llega el límite: ninguna identidad con la que el
+        # sistema se conecta es dueña de la tabla, así que no puede apagar el
+        # disparador. Sin este caso, la afirmación de la especificación no
+        # tenía quién la vigilara (revisión interna de la ronda 1, hallazgo 7).
+        for rol in ("service_role", "authenticated", "anon"):
+            ok, d = corre("alter table public.aviso_inicio disable trigger aviso_inicio_no_se_cambia;",
+                          antes=creado, rol=rol)
+            caso(f"N29 {rol} no puede apagar el bloqueo del aviso: no es dueño de la tabla",
+                 not ok and "must be owner" in d, d)
 
         for rol in ("service_role", "authenticated", "anon"):
             ok, d = corre(aviso() + ";", rol=rol)

@@ -29,13 +29,19 @@
 --      antigua y la vigencia podía contarse desde la equivocada.
 --
 -- LO QUE NO CAMBIA (el objeto completo, G6 paso 6)
---   - Las dos siguen siendo STABLE: leen la base y el pase de la petición, y
---     la hora la toman del inicio de la sentencia (D-102), no del reloj en
---     curso.
+--   - Las dos siguen siendo STABLE, cada una por su razón.
+--     es_mi_organizacion lo necesita: lee la base y el pase de la petición, y
+--     la hora la toma del inicio de la sentencia (D-102), no del reloj en
+--     curso. dentro_del_plazo no lee nada ni mira ningún reloj —recibe `ahora`
+--     como parámetro— y podría ser IMMUTABLE; se queda STABLE como la creó
+--     20261125033000_usuario, porque esta migración corrige su regla y no sus
+--     propiedades (revisión interna de la ronda 1 del tramo 4).
 --   - dentro_del_plazo sigue siendo de su invocador y sin permiso para anon
 --     ni authenticated: solo la llama es_mi_organizacion. El REVOKE se repite
---     aquí, aunque CREATE OR REPLACE conserva los permisos, para que la
---     migración deje el objeto completo y no dependa de la anterior.
+--     aquí, aunque CREATE OR REPLACE conserva los permisos, para que quede
+--     escrito junto al cuerpo que lo necesita. No hace a la migración
+--     independiente: los dos bloques abortan con mensaje nuestro si las
+--     funciones no existen, así que depende de la anterior por diseño.
 --   - es_mi_organizacion sigue con los privilegios de su dueño, search_path
 --     vacío y sin ser STRICT (un nulo responde «no»), y la ejecutan anon y
 --     authenticated. Su lista cerrada en supabase/comprobaciones/estructura.sql

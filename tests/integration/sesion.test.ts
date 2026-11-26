@@ -28,6 +28,10 @@ import { MENSAJE_UNICO } from "@/lib/sesion/reglas";
 import { cerrar, entrar, sesionVigente } from "@/lib/sesion/vigente";
 
 const ACTIVA = process.env.CT_BASE_LOCAL === "1";
+// Donde esta suite es obligatoria —el trabajo de la base en la integración
+// continua— se pone también esta variable. Sin ella, una suite saltada sale en
+// verde y no prueba nada: el caso I7 lo impide.
+const EXIGIDA = process.env.CT_INTEGRACION_EXIGIDA === "1";
 const RAIZ = join(__dirname, "..", "..");
 const SITIO = "http://localhost:3000";
 
@@ -66,7 +70,13 @@ function navegador() {
   return { galletero, guardadas };
 }
 
-describe.skipIf(!ACTIVA)("sesión con el cliente oficial y la base local (solo en local)", () => {
+describe.runIf(EXIGIDA)("esta suite no se salta donde es obligatoria", () => {
+  it("I7 donde se exige, la base local está declarada y la suite corre", () => {
+    expect(ACTIVA).toBe(true);
+  });
+});
+
+describe.skipIf(!ACTIVA)("sesión con el cliente oficial y la base local", () => {
   let env: Record<string, string> = {};
   let org = "";
   const cuentas: string[] = [];

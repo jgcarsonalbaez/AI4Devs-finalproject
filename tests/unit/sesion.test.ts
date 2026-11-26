@@ -10,7 +10,8 @@
 // El servicio de autenticación y la base se reemplazan por un cliente falso:
 // aquí se prueba la regla del código. Lo que la base hace con el pase real lo
 // prueba tests/base/prueba-sesion.py; el flujo con el cliente oficial y la base
-// local, tests/integration/sesion.test.ts (solo en local).
+// local, tests/integration/sesion.test.ts (necesita la base levantada; la
+// corre también la integración continua, en su trabajo de la base).
 import { describe, expect, it } from "vitest";
 import {
   MENSAJE_UNICO,
@@ -50,10 +51,25 @@ interface Escenario {
   errorDeBase?: boolean;
   credencialesValidas?: boolean; // signInWithPassword
   paseAlEntrar?: string;
-  // Lo que hace signOut cuando se le pide cerrar: devolver error en el campo
-  // que su contrato declara, o fallar la llamada. En los dos casos la cookie
-  // que tuviera el navegador se queda (revisión del tramo 4, ronda 1).
-  cierreFalla?: "error" | "excepcion";
+  // Lo que hace signOut cuando se le pide cerrar.
+  //   "error":     devuelve error en el campo que su contrato declara y, como
+  //                el cliente oficial con alcance local, ya ha borrado la
+  //                sesión del navegador: el error es de la revocación en el
+  //                servicio, no del cierre local.
+  //   "excepcion": la llamada falla; la sesión ya está borrada, igual.
+  //   "vive":      devuelve error y la sesión sigue en el navegador. Es el
+  //                camino que el cliente oficial deja abierto cuando el error
+  //                de sesión no es pasajero ni «no hay sesión».
+  // Los dos primeros se comprobaron contra @supabase/auth-js 2.119.0, que
+  // borra la sesión local antes de pedir la revocación (revisión interna de
+  // la ronda 1 del tramo 4).
+  cierreFalla?: "error" | "excepcion" | "vive";
+  // Tras un cierre que falló, tampoco se puede comprobar si quedó sesión.
+  errorAlComprobarCierre?: boolean;
+  // Lo que devuelve signInWithPassword cuando no son credenciales
+  // incorrectas, sino que el servicio no está: un error sin estado, como el
+  // que da el cliente oficial al no poder llegar (AuthRetryableFetchError).
+  servicioCaido?: boolean;
 }
 
 // Cliente falso: imita del cliente oficial lo que usa el código (auth y
@@ -81,6 +97,7 @@ function clienteFalso(e: Escenario) {
   const cliente = {
     auth: {
       async getSession() {
+        if (e.errorAlComprobarCierre && anotado.signOut.length > 0) throw new Error("no se pudo leer la sesión");
         return { data: { session: guardado ? { access_token: guardado } : null }, error: null };
       },
       async getUser(p: string) {
@@ -91,15 +108,21 @@ function clienteFalso(e: Escenario) {
       },
       async signInWithPassword(c: { email: string; password: string }) {
         anotado.signIn.push(c);
-        if (!e.credencialesValidas) return { data: { session: null }, error: { message: "Invalid login credentials" } };
+        if (e.servicioCaido) return { data: { session: null }, error: { message: "Failed to fetch" } };
+        if (!e.credencialesValidas) {
+          return { data: { session: null }, error: { status: 400, message: "Invalid login credentials" } };
+        }
         guardado = e.paseAlEntrar ?? null;
         return { data: { session: guardado ? { access_token: guardado } : null }, error: null };
       },
       async signOut(o: { scope: "local" }) {
         anotado.signOut.push(o);
-        if (e.cierreFalla === "excepcion") throw new Error("no hubo respuesta del servicio");
-        if (e.cierreFalla === "error") return { error: { message: "no se pudo cerrar la sesión" } };
+        if (e.cierreFalla === "vive") return { error: { message: "no se pudo cerrar la sesión" } };
+        // Como el cliente oficial con alcance local: la sesión del navegador
+        // se borra antes de pedir la revocación, pase lo que pase después.
         guardado = null;
+        if (e.cierreFalla === "excepcion") throw new Error("no hubo respuesta del servicio");
+        if (e.cierreFalla === "error") return { error: { message: "no se revocó el pase en el servicio" } };
         return { error: null };
       },
     },
@@ -397,6 +420,19 @@ describe("entrar: solo con cuenta activa, con un mensaje único y desde el propi
     expect(anotado.signOut).toEqual([{ scope: "local" }]);
     expect(await cliente.auth.getSession()).toEqual({ data: { session: null }, error: null });
   });
+  it("N38 el servicio de autenticación no contesta: no se corta la sesión que el navegador ya tenía", async () => {
+    // Un error sin estado es una falla pasajera del servicio, no un rechazo de
+    // credenciales: cortar aquí sacaría de su sesión a quien ya estaba dentro
+    // (revisión interna de la ronda 1 del tramo 4).
+    const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(HORA), servicioCaido: true });
+    expect(await entrar(cliente, credenciales, SITIO, SITIO, AHORA)).toEqual({
+      estado: "rechazada",
+      codigo: 401,
+      mensaje: MENSAJE_UNICO,
+    });
+    expect(anotado.signOut).toEqual([]);
+    expect(await cliente.auth.getSession()).not.toEqual({ data: { session: null }, error: null });
+  });
   it("N37 si la base falla al comprobar el usuario, la sesión recién creada se retira y se informa", async () => {
     const { cliente, anotado } = clienteFalso({
       credencialesValidas: true,
@@ -425,13 +461,25 @@ describe("cerrar: el pase deja de servir, y solo desde el propio sitio", () => {
       expect(anotado.signOut).toEqual([]);
     }
   });
-  it("N33 el servicio rechaza el cierre: no se dice «cerrada» lo que no se cerró", async () => {
+  it("P19 el servicio no revoca el pase pero la sesión del navegador ya se cerró: queda cerrada", async () => {
+    // El cliente oficial con alcance local borra la sesión antes de pedir la
+    // revocación, así que su error no significa que el navegador siga dentro.
     const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "error" });
+    expect(await cerrar(cliente, SITIO, SITIO)).toEqual({ estado: "cerrada" });
+    expect(anotado.signOut).toEqual([{ scope: "local" }]);
+    expect(await cliente.auth.getSession()).toEqual({ data: { session: null }, error: null });
+  });
+  it("P20 la llamada de cierre falla y la sesión ya no está: también queda cerrada", async () => {
+    const { cliente } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "excepcion" });
+    expect(await cerrar(cliente, SITIO, SITIO)).toEqual({ estado: "cerrada" });
+  });
+  it("N33 el cierre falla y la sesión sigue viva en el navegador: no se dice «cerrada»", async () => {
+    const { cliente, anotado } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "vive" });
     expect(await cerrar(cliente, SITIO, SITIO)).toEqual(NO_SE_CERRO);
     expect(anotado.signOut).toEqual([{ scope: "local" }]);
   });
-  it("N34 la llamada de cierre falla: el mismo aviso nuestro, y el error del servicio no sale a quien pregunta", async () => {
-    const { cliente } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "excepcion" });
+  it("N34 el cierre falla, la sesión sigue viva y además no se puede comprobar: no se dice «cerrada»", async () => {
+    const { cliente } = clienteFalso({ sesion: paseDeHace(HORA), cierreFalla: "vive", errorAlComprobarCierre: true });
     expect(await cerrar(cliente, SITIO, SITIO)).toEqual(NO_SE_CERRO);
   });
 });
